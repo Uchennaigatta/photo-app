@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhotoShare - Cloud Native Photo Sharing</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-camera-retro"></i>
+                <span>PhotoShare</span>
+            </div>
+            <div class="nav-search" id="navSearch">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search photos, tags, locations...">
+            </div>
+            <div class="nav-links">
+                <a href="#" class="nav-link" id="homeLink"><i class="fas fa-home"></i> Home</a>
+                <a href="#" class="nav-link" id="exploreLink"><i class="fas fa-compass"></i> Explore</a>
+                <a href="#" class="nav-link creator-only" id="myPhotosLink"><i class="fas fa-images"></i> My Photos</a>
+                <a href="#" class="nav-link creator-only" id="uploadLink"><i class="fas fa-cloud-upload-alt"></i> Upload</a>
+                <div class="nav-user" id="userMenu">
+                    <img src="https://ui-avatars.com/api/?name=Guest&background=6366f1&color=fff" alt="User" class="user-avatar" id="userAvatar">
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="user-info">
+                            <span class="user-name" id="userName">Guest</span>
+                            <span class="user-role" id="userRole">Consumer</span>
+                        </div>
+                        <hr>
+                        <a href="#" id="myPhotosBtn" class="creator-only"><i class="fas fa-images"></i> My Photos</a>
+                        <a href="#" id="profileBtn"><i class="fas fa-user"></i> Profile</a>
+                        <a href="#" id="settingsBtn"><i class="fas fa-cog"></i> Settings</a>
+                        <a href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
+                </div>
+            </div>
+            <button class="nav-toggle" id="navToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Auth Modal -->
+    <div class="modal" id="authModal">
+        <div class="modal-content auth-modal">
+            <button class="modal-close" id="authModalClose">&times;</button>
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Login</button>
+                <button class="auth-tab" data-tab="register">Register</button>
+            </div>
+            
+            <!-- Login Form -->
+            <form class="auth-form active" id="loginForm">
+                <h2><i class="fas fa-sign-in-alt"></i> Welcome Back</h2>
+                <div class="form-group">
+                    <label><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="loginEmail" required placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="loginPassword" required placeholder="Enter your password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+                <p class="auth-footer">Don't have an account? <a href="#" class="switch-auth" data-target="register">Register</a></p>
+            </form>
+
+            <!-- Register Form -->
+            <form class="auth-form" id="registerForm">
+                <h2><i class="fas fa-user-plus"></i> Create Account</h2>
+                <div class="form-group">
+                    <label><i class="fas fa-user"></i> Full Name</label>
+                    <input type="text" id="registerName" required placeholder="Enter your full name">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="registerEmail" required placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="registerPassword" required placeholder="Create a password">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-user-tag"></i> Account Type</label>
+                    <select id="registerRole">
+                        <option value="consumer">Consumer - View & Interact</option>
+                        <option value="creator">Creator - Upload & Share</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">
+                    <i class="fas fa-user-plus"></i> Create Account
+                </button>
+                <p class="auth-footer">Already have an account? <a href="#" class="switch-auth" data-target="login">Login</a></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Modal (Creator Only) -->
+    <div class="modal" id="uploadModal">
+        <div class="modal-content upload-modal">
+            <button class="modal-close" id="uploadModalClose">&times;</button>
+            <h2><i class="fas fa-cloud-upload-alt"></i> Upload Photo</h2>
+            <form id="uploadForm">
+                <div class="upload-zone" id="uploadZone">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Drag & drop your photo here or <span>browse</span></p>
+                    <input type="file" id="photoInput" accept="image/*" hidden>
+                </div>
+                <div class="upload-preview" id="uploadPreview">
+                    <img id="previewImage" src="" alt="Preview">
+                    <button type="button" class="btn btn-outline" id="removePreview">
+                        <i class="fas fa-times"></i> Remove
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-heading"></i> Title</label>
+                    <input type="text" id="photoTitle" required placeholder="Give your photo a title">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-align-left"></i> Caption</label>
+                    <textarea id="photoCaption" rows="3" placeholder="Write a caption..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="fas fa-map-marker-alt"></i> Location</label>
+                        <input type="text" id="photoLocation" placeholder="Where was this taken?">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-users"></i> People</label>
+                        <input type="text" id="photoPeople" placeholder="Tag people (comma separated)">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-tags"></i> Tags</label>
+                    <input type="text" id="photoTags" placeholder="Add tags (comma separated)">
+                </div>
+                <div class="ai-features">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="autoTags" checked>
+                        <span><i class="fas fa-robot"></i> Auto-generate tags using AI</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="contentModeration" checked>
+                        <span><i class="fas fa-shield-alt"></i> Content moderation</span>
+                    </label>
+                </div>
+                <div class="upload-progress" id="uploadProgress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <span class="progress-text" id="progressText">Uploading... 0%</span>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="uploadBtn">
+                    <i class="fas fa-upload"></i> Upload Photo
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Photo Detail Modal -->
+    <div class="modal" id="photoModal">
+        <div class="modal-content photo-modal">
+            <button class="modal-close" id="photoModalClose">&times;</button>
+            <div class="photo-detail">
+                <div class="photo-image">
+                    <img id="modalImage" src="" alt="Photo">
+                </div>
+                <div class="photo-info">
+                    <div class="photo-header">
+                        <img class="creator-avatar" id="creatorAvatar" src="" alt="Creator">
+                        <div class="creator-info">
+                            <span class="creator-name" id="creatorName"></span>
+                            <span class="photo-date" id="photoDate"></span>
+                        </div>
+                    </div>
+                    <h3 id="modalTitle"></h3>
+                    <p class="photo-caption" id="modalCaption"></p>
+                    <div class="photo-meta">
+                        <span id="modalLocation"><i class="fas fa-map-marker-alt"></i> <span></span></span>
+                        <span id="modalPeople"><i class="fas fa-users"></i> <span></span></span>
+                    </div>
+                    <div class="photo-tags" id="modalTags"></div>
+                    <div class="ai-analysis" id="aiAnalysis">
+                        <h4><i class="fas fa-robot"></i> AI Analysis</h4>
+                        <div class="ai-tags" id="aiTags"></div>
+                        <p class="ai-description" id="aiDescription"></p>
+                    </div>
+                    <div class="photo-actions">
+                        <div class="rating-section">
+                            <span class="rating-label">Rate this photo:</span>
+                            <div class="star-rating" id="starRating">
+                                <i class="fas fa-star" data-rating="1"></i>
+                                <i class="fas fa-star" data-rating="2"></i>
+                                <i class="fas fa-star" data-rating="3"></i>
+                                <i class="fas fa-star" data-rating="4"></i>
+                                <i class="fas fa-star" data-rating="5"></i>
+                            </div>
+                            <span class="avg-rating" id="avgRating">0.0</span>
+                            <span class="rating-count" id="ratingCount">(0 ratings)</span>
+                        </div>
+                        <div class="action-buttons">
+                            <button class="btn btn-icon" id="likeBtn">
+                                <i class="far fa-heart"></i>
+                                <span id="likeCount">0</span>
+                            </button>
+                            <button class="btn btn-icon" id="shareBtn">
+                                <i class="fas fa-share-alt"></i>
+                            </button>
+                            <button class="btn btn-icon" id="downloadBtn">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="comments-section">
+                        <h4><i class="fas fa-comments"></i> Comments <span id="commentCount">(0)</span></h4>
+                        <div class="comments-list" id="commentsList"></div>
+                        <form class="comment-form" id="commentForm">
+                            <input type="text" id="commentInput" placeholder="Add a comment...">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Hero Section (Home) -->
+        <section class="hero" id="heroSection">
+            <div class="hero-content">
+                <h1>Share Your <span class="gradient-text">Moments</span></h1>
+                <p>A cloud-native platform for photographers to share their work with the world</p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary btn-lg" id="getStartedBtn">
+                        <i class="fas fa-rocket"></i> Get Started
+                    </button>
+                    <button class="btn btn-outline btn-lg" id="exploreBtn">
+                        <i class="fas fa-compass"></i> Explore Photos
+                    </button>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <span class="stat-number" id="totalPhotos">0</span>
+                        <span class="stat-label">Photos</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" id="totalCreators">0</span>
+                        <span class="stat-label">Creators</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" id="totalViews">0</span>
+                        <span class="stat-label">Views</span>
+                    </div>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="floating-cards">
+                    <div class="floating-card card-1"></div>
+                    <div class="floating-card card-2"></div>
+                    <div class="floating-card card-3"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="features" id="featuresSection">
+            <h2 class="section-title">Why Choose <span class="gradient-text">PhotoShare</span>?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                    <h3>Cloud Native</h3>
+                    <p>Built on Azure for unlimited scalability and reliability</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h3>AI Powered</h3>
+                    <p>Automatic tagging and content analysis using Azure Cognitive Services</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Content Moderation</h3>
+                    <p>Automatic content moderation to keep the platform safe</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h3>Lightning Fast</h3>
+                    <p>CDN delivery and optimized storage for instant loading</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Photo Gallery Section -->
+        <section class="gallery-section" id="gallerySection">
+            <div class="gallery-header">
+                <h2 class="section-title">
+                    <span id="galleryTitle">Explore Photos</span>
+                </h2>
+                <div class="gallery-filters">
+                    <button class="filter-btn active" data-filter="all">All</button>
+                    <button class="filter-btn" data-filter="nature">Nature</button>
+                    <button class="filter-btn" data-filter="portrait">Portrait</button>
+                    <button class="filter-btn" data-filter="architecture">Architecture</button>
+                    <button class="filter-btn" data-filter="street">Street</button>
+                    <select class="sort-select" id="sortSelect">
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="popular">Most Popular</option>
+                        <option value="rating">Highest Rated</option>
+                    </select>
+                </div>
+            </div>
+            <div class="photo-grid" id="photoGrid">
+                <!-- Photos will be loaded dynamically -->
+            </div>
+            <div class="loading-spinner" id="loadingSpinner">
+                <div class="spinner"></div>
+                <p>Loading photos...</p>
+            </div>
+            <div class="load-more" id="loadMore">
+                <button class="btn btn-outline btn-lg" id="loadMoreBtn">
+                    <i class="fas fa-plus"></i> Load More
+                </button>
+            </div>
+            <div class="no-photos" id="noPhotos">
+                <i class="fas fa-camera"></i>
+                <h3>No photos yet</h3>
+                <p>Be the first to share your moments!</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <i class="fas fa-camera-retro"></i>
+                <span>PhotoShare</span>
+                <p>A scalable cloud-native photo sharing platform built on Microsoft Azure</p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-column">
+                    <h4>Platform</h4>
+                    <a href="#">Home</a>
+                    <a href="#">Explore</a>
+                    <a href="#">Upload</a>
+                </div>
+                <div class="footer-column">
+                    <h4>Technology</h4>
+                    <a href="#">Azure Functions</a>
+                    <a href="#">Cosmos DB</a>
+                    <a href="#">Blob Storage</a>
+                    <a href="#">Cognitive Services</a>
+                </div>
+                <div class="footer-column">
+                    <h4>About</h4>
+                    <a href="#">Project Info</a>
+                    <a href="#">Architecture</a>
+                    <a href="#">API Docs</a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 PhotoShare - Cloud Native Coursework Project</p>
+        </div>
+    </footer>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
