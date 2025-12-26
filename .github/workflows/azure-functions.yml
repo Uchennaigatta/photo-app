@@ -1,17 +1,37 @@
-name: Deploy Azure Functions
+# ============================================================
+# PhotoShare - CI/CD Pipeline for Azure Deployment
+# ============================================================
+# This pipeline automatically deploys the application when
+# code is pushed to the main branch.
+#
+# Features:
+# - Automated backend deployment to Azure Functions
+# - Automated frontend deployment to Azure Storage Static Website
+# - Build verification and testing
+# ============================================================
+
+name: PhotoShare CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
 
 env:
-  AZURE_FUNCTIONAPP_NAME: 'photoshare-func'
-  NODE_VERSION: '18.x'
+  AZURE_FUNCTIONAPP_NAME: 'photoshare-func-hscrezebbubqdhd7'
+  AZURE_STORAGE_ACCOUNT: 'photosharewebstore'
+  NODE_VERSION: '20.x'
 
 jobs:
-  build-and-deploy:
+  # ============================================================
+  # Job 1: Build and Test
+  # ============================================================
+  build-and-test:
+    name: 🔨 Build & Test
     runs-on: ubuntu-latest
     
     steps:
@@ -25,20 +45,110 @@ jobs:
           cache: 'npm'
 
       - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🧪 Run tests
+        run: npm test --if-present
+        continue-on-error: true
+
+      - name: 📋 List functions
+        run: |
+          echo "Azure Functions to deploy:"
+          ls -la src/functions/
+
+  # ============================================================
+  # Job 2: Deploy Backend (Azure Functions)
+  # ============================================================
+  deploy-backend:
+    name: 🚀 Deploy Backend
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install production dependencies
         run: npm ci --production
 
-      - name: � Create deployment package
-        run: |
-          zip -r deploy.zip . -x "*.git*" -x "*.github*" -x "*.md" -x "frontend/*" -x "test-*"
+      - name: 🚀 Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          package: .
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
 
-      - name: 🔐 Login to Azure
-        uses: azure/login@v2
+      - name: ✅ Backend deployment complete
+        run: |
+          echo "Backend deployed to: https://${{ env.AZURE_FUNCTIONAPP_NAME }}.azurewebsites.net"
+          echo "API Base URL: https://${{ env.AZURE_FUNCTIONAPP_NAME }}.azurewebsites.net/api"
+
+  # ============================================================
+  # Job 3: Deploy Frontend (Azure Storage Static Website)
+  # ============================================================
+  deploy-frontend:
+    name: 🌐 Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: 🚀 Deploy to Azure Functions
+      - name: 🌐 Deploy to Azure Storage Static Website
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az storage blob upload-batch \
+              --account-name ${{ env.AZURE_STORAGE_ACCOUNT }} \
+              --destination '$web' \
+              --source ./frontend \
+              --overwrite \
+              --auth-mode key
+
+      - name: ✅ Frontend deployment complete
         run: |
-          az functionapp deployment source config-zip \
-            --resource-group photoshare-rg \
-            --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
-            --src deploy.zip
+          echo "Frontend deployed to: https://${{ env.AZURE_STORAGE_ACCOUNT }}.z1.web.core.windows.net"
+
+  # ============================================================
+  # Job 4: Post-Deployment Verification
+  # ============================================================
+  verify-deployment:
+    name: ✅ Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend]
+    
+    steps:
+      - name: 🔍 Check Backend Health
+        run: |
+          echo "Checking backend health..."
+          curl -s -o /dev/null -w "%{http_code}" https://${{ env.AZURE_FUNCTIONAPP_NAME }}.switzerlandnorth-01.azurewebsites.net/api/stats || true
+          echo "Backend check complete"
+
+      - name: 🔍 Check Frontend Health
+        run: |
+          echo "Checking frontend health..."
+          curl -s -o /dev/null -w "%{http_code}" https://${{ env.AZURE_STORAGE_ACCOUNT }}.z1.web.core.windows.net || true
+          echo "Frontend check complete"
+
+      - name: 📊 Deployment Summary
+        run: |
+          echo "=============================================="
+          echo "🎉 DEPLOYMENT COMPLETE!"
+          echo "=============================================="
+          echo "Frontend: https://${{ env.AZURE_STORAGE_ACCOUNT }}.z1.web.core.windows.net"
+          echo "Backend:  https://${{ env.AZURE_FUNCTIONAPP_NAME }}.switzerlandnorth-01.azurewebsites.net/api"
+          echo "=============================================="

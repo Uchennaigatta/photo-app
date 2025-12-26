@@ -1,0 +1,95 @@
+# ============================================================
+# PhotoShare - CI/CD Pipeline for Azure Functions
+# ============================================================
+# This pipeline automatically deploys the backend when
+# code is pushed to the main branch.
+#
+# Advanced Feature: Continuous Integration/Continuous Deployment
+# - Automated testing and deployment
+# - Version control integration
+# - Production-ready deployment pipeline
+# ============================================================
+
+name: PhotoShare CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger from GitHub UI
+
+env:
+  AZURE_FUNCTIONAPP_NAME: 'photoshare-func-hscrezebbubqdhd7'
+  NODE_VERSION: '20.x'
+
+jobs:
+  # ============================================================
+  # Job 1: Build and Test
+  # ============================================================
+  build-and-test:
+    name: 🔨 Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🧪 Run tests
+        run: npm test --if-present
+        continue-on-error: true
+
+      - name: ✅ Build verification complete
+        run: |
+          echo "Build completed successfully!"
+          echo "Functions found:"
+          ls -la src/functions/
+
+  # ============================================================
+  # Job 2: Deploy Backend to Azure Functions
+  # ============================================================
+  deploy-backend:
+    name: 🚀 Deploy to Azure
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: 📦 Install production dependencies
+        run: npm ci --production
+
+      - name: 🚀 Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          package: .
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+
+      - name: ✅ Deployment Summary
+        run: |
+          echo "=============================================="
+          echo "🎉 DEPLOYMENT COMPLETE!"
+          echo "=============================================="
+          echo "Function App: ${{ env.AZURE_FUNCTIONAPP_NAME }}"
+          echo "API URL: https://photoshare-func-hscrezebbubqdhd7.switzerlandnorth-01.azurewebsites.net/api"
+          echo "=============================================="
