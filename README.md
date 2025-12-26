@@ -245,3 +245,5 @@ This project is for educational purposes as part of coursework.
 ---
 
 **Built with ❤️ using Microsoft Azure**
+#   D e p l o y e d   1 2 / 2 6 / 2 0 2 5   2 3 : 0 0 : 1 6  
+ 
