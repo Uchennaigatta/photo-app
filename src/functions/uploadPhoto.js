@@ -1,17 +1,17 @@
 const { app } = require('@azure/functions');
 const { getContainer } = require('../services/database');
 const { uploadToBlob, deleteFromBlob } = require('../services/storage');
-const { analyzeImage } = require('../services/cognitiveServices');
+const { analyzeImage, moderateContent } = require('../services/cognitiveServices');
 const { verifyToken, requireCreator } = require('../services/auth');
 const { v4: uuidv4 } = require('uuid');
 
-// Upload photo (Creator only)
+// Upload media (Creator only)
 app.http('uploadPhoto', {
     methods: ['POST'],
     authLevel: 'anonymous',
     route: 'photos',
     handler: async (request, context) => {
-        context.log('Upload photo request');
+        context.log('Upload media request');
 
         try {
             // Verify authentication and creator role
@@ -20,7 +20,7 @@ app.http('uploadPhoto', {
                 return { status: 401, jsonBody: { success: false, message: 'Unauthorized' } };
             }
             if (user.role !== 'creator') {
-                return { status: 403, jsonBody: { success: false, message: 'Only creators can upload photos' } };
+                return { status: 403, jsonBody: { success: false, message: 'Only creators can upload media' } };
             }
 
             // Parse multipart form data
@@ -35,8 +35,11 @@ app.http('uploadPhoto', {
             const contentModeration = formData.get('contentModeration') === 'true';
 
             if (!file || !title) {
-                return { status: 400, jsonBody: { success: false, message: 'Photo and title are required' } };
+                return { status: 400, jsonBody: { success: false, message: 'Media file and title are required' } };
             }
+
+            // Check if file is video or image
+            const isVideo = file.type.startsWith('video/');
 
             // Generate unique ID
             const photoId = uuidv4();
@@ -47,11 +50,11 @@ app.http('uploadPhoto', {
             const fileBuffer = Buffer.from(await file.arrayBuffer());
             const imageUrl = await uploadToBlob(blobName, fileBuffer, file.type);
 
-            // AI Analysis (if enabled)
+            // AI Analysis (if enabled and not a video)
             let aiAnalysis = null;
             let status = 'approved';
             
-            if (autoTags || contentModeration) {
+            if (!isVideo && (autoTags || contentModeration)) {
                 try {
                     const analysis = await analyzeImage(imageUrl);
                     
@@ -99,6 +102,7 @@ app.http('uploadPhoto', {
                 caption,
                 imageUrl,
                 blobName,
+                mediaType: isVideo ? 'video' : 'image',
                 location,
                 people,
                 tags,
@@ -129,7 +133,7 @@ app.http('uploadPhoto', {
                 status: 201,
                 jsonBody: {
                     success: true,
-                    message: status === 'approved' ? 'Photo uploaded successfully' : 'Photo uploaded and pending review',
+                    message: status === 'approved' ? 'Media uploaded successfully' : 'Media uploaded and pending review',
                     data: photo
                 }
             };
@@ -137,7 +141,7 @@ app.http('uploadPhoto', {
             context.log('Upload error:', error);
             return {
                 status: 500,
-                jsonBody: { success: false, message: 'Failed to upload photo', error: error.message }
+                jsonBody: { success: false, message: 'Failed to upload media', error: error.message }
             };
         }
     }
@@ -224,8 +228,49 @@ app.http('updatePhoto', {
                 return { status: 403, jsonBody: { success: false, message: 'Not authorized to edit this photo' } };
             }
 
-            const updates = await request.json();
-            const allowedUpdates = ['title', 'caption', 'location', 'people', 'tags'];
+            // Try to parse as FormData first (for image updates), fall back to JSON
+            let updates = {};
+            let newImageUrl = null;
+
+            try {
+                const formData = await request.formData();
+                const photoFile = formData.get('photo');
+
+                if (photoFile) {
+                    // Upload new image
+                    const fileBuffer = Buffer.from(await photoFile.arrayBuffer());
+                    const blobName = `${photoId}_${Date.now()}.jpg`;
+                    const imageUrl = await uploadToBlob(blobName, fileBuffer, photoFile.type);
+                    newImageUrl = imageUrl;
+
+                    // Delete old image if it exists
+                    if (photo.imageUrl) {
+                        try {
+                            const oldBlobName = photo.imageUrl.split('/').pop();
+                            await deleteFromBlob(oldBlobName);
+                        } catch (deleteError) {
+                            context.log('Failed to delete old image:', deleteError);
+                        }
+                    }
+                }
+
+                // Get other form fields
+                updates = {
+                    title: formData.get('title'),
+                    caption: formData.get('caption'),
+                    location: formData.get('location'),
+                    people: formData.get('people') ? formData.get('people').split(',').map(p => p.trim()).filter(p => p) : [],
+                    tags: formData.get('tags') ? formData.get('tags').split(',').map(t => t.trim().toLowerCase()).filter(t => t) : [],
+                    autoTags: formData.get('autoTags') === 'true',
+                    contentModeration: formData.get('contentModeration') === 'true'
+                };
+            } catch (formError) {
+                // Not FormData, try JSON
+                context.log('Not FormData, trying JSON');
+                updates = await request.json();
+            }
+
+            const allowedUpdates = ['title', 'caption', 'location', 'people', 'tags', 'autoTags', 'contentModeration'];
             
             // Apply allowed updates
             allowedUpdates.forEach(field => {
@@ -233,10 +278,59 @@ app.http('updatePhoto', {
                     photo[field] = updates[field];
                 }
             });
+
+            // Update image URL if new image was uploaded
+            if (newImageUrl) {
+                photo.imageUrl = newImageUrl;
+            }
             
             // Update category based on first tag
             if (updates.tags && updates.tags.length > 0) {
                 photo.category = updates.tags[0];
+            }
+            
+            // Process AI features if requested and we have an image
+            const imageUrl = newImageUrl || photo.imageUrl;
+            if (updates.autoTags && imageUrl) {
+                try {
+                    // Get AI analysis for the image
+                    const aiAnalysis = await analyzeImage(imageUrl);
+                    photo.aiAnalysis = {
+                        tags: aiAnalysis.tags || [],
+                        description: aiAnalysis.description || '',
+                        categories: aiAnalysis.categories || []
+                    };
+                    
+                    // Add AI tags to existing tags if not already present
+                    if (aiAnalysis.tags && aiAnalysis.tags.length > 0) {
+                        const existingTags = new Set(photo.tags || []);
+                        aiAnalysis.tags.forEach(tag => {
+                            if (!existingTags.has(tag)) {
+                                existingTags.add(tag);
+                            }
+                        });
+                        photo.tags = Array.from(existingTags);
+                    }
+                } catch (aiError) {
+                    context.log('AI analysis failed:', aiError);
+                    // Continue without AI analysis
+                }
+            }
+            
+            // Content moderation if requested
+            if (updates.contentModeration && imageUrl) {
+                try {
+                    const moderationResult = await moderateContent(imageUrl);
+                    // Set moderation status based on results
+                    if (moderationResult.isAdultContent || moderationResult.isRacyContent) {
+                        photo.moderationStatus = 'rejected';
+                    } else {
+                        photo.moderationStatus = 'approved';
+                    }
+                } catch (modError) {
+                    context.log('Content moderation failed:', modError);
+                    // Continue without moderation
+                }
             }
             
             photo.updatedAt = new Date().toISOString();

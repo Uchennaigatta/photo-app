@@ -106,12 +106,12 @@
     <div class="modal" id="uploadModal">
         <div class="modal-content upload-modal">
             <button class="modal-close" id="uploadModalClose">&times;</button>
-            <h2><i class="fas fa-cloud-upload-alt"></i> Upload Photo</h2>
+            <h2><i class="fas fa-cloud-upload-alt"></i> Upload Media</h2>
             <form id="uploadForm">
                 <div class="upload-zone" id="uploadZone">
                     <i class="fas fa-cloud-upload-alt"></i>
-                    <p>Drag & drop your photo here or <span>browse</span></p>
-                    <input type="file" id="photoInput" accept="image/*" hidden>
+                    <p>Drag & drop your photo or video here or <span>browse</span></p>
+                    <input type="file" id="photoInput" accept="image/*,video/*" hidden>
                 </div>
                 <div class="upload-preview" id="uploadPreview">
                     <img id="previewImage" src="" alt="Preview">
@@ -121,7 +121,7 @@
                 </div>
                 <div class="form-group">
                     <label><i class="fas fa-heading"></i> Title</label>
-                    <input type="text" id="photoTitle" required placeholder="Give your photo a title">
+                    <input type="text" id="photoTitle" required placeholder="Give your media a title">
                 </div>
                 <div class="form-group">
                     <label><i class="fas fa-align-left"></i> Caption</label>
@@ -130,7 +130,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label><i class="fas fa-map-marker-alt"></i> Location</label>
-                        <input type="text" id="photoLocation" placeholder="Where was this taken?">
+                        <input type="text" id="photoLocation" placeholder="Where was this taken or recorded?">
                     </div>
                     <div class="form-group">
                         <label><i class="fas fa-users"></i> People</label>
@@ -158,47 +158,12 @@
                     <span class="progress-text" id="progressText">Uploading... 0%</span>
                 </div>
                 <button type="submit" class="btn btn-primary btn-block" id="uploadBtn">
-                    <i class="fas fa-upload"></i> Upload Photo
+                    <i class="fas fa-upload"></i> Upload Media
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- Edit Photo Modal -->
-    <div class="modal" id="editPhotoModal">
-        <div class="modal-content">
-            <button class="modal-close" onclick="App.closeModal('editPhotoModal')">&times;</button>
-            <h2><i class="fas fa-edit"></i> Edit Photo</h2>
-            <form id="editPhotoForm" onsubmit="App.handleSaveEdit(event)">
-                <div class="form-group">
-                    <label for="editPhotoTitle">Title *</label>
-                    <input type="text" id="editPhotoTitle" required placeholder="Enter photo title">
-                </div>
-                <div class="form-group">
-                    <label for="editPhotoCaption">Caption</label>
-                    <textarea id="editPhotoCaption" rows="3" placeholder="Describe your photo..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="editPhotoLocation">Location</label>
-                    <input type="text" id="editPhotoLocation" placeholder="Where was this taken?">
-                </div>
-                <div class="form-group">
-                    <label for="editPhotoPeople">People (comma separated)</label>
-                    <input type="text" id="editPhotoPeople" placeholder="John, Jane, etc.">
-                </div>
-                <div class="form-group">
-                    <label for="editPhotoTags">Tags (comma separated)</label>
-                    <input type="text" id="editPhotoTags" placeholder="nature, landscape, sunset">
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="App.closeModal('editPhotoModal')">Cancel</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save"></i> Save Changes
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- Photo Detail Modal -->
     <div class="modal" id="photoModal">
@@ -206,7 +171,8 @@
             <button class="modal-close" id="photoModalClose">&times;</button>
             <div class="photo-detail">
                 <div class="photo-image">
-                    <img id="modalImage" src="" alt="Photo">
+                    <img id="modalImage" src="" alt="Media" style="display: none;">
+                    <video id="modalVideo" src="" controls style="display: none; max-width: 100%; max-height: 600px; border-radius: 8px;"></video>
                 </div>
                 <div class="photo-info">
                     <div class="photo-header">
@@ -256,10 +222,10 @@
                     </div>
                     <!-- Edit/Delete buttons for photo owner -->
                     <div class="photo-owner-actions hidden" id="photoOwnerActions">
-                        <button class="btn btn-secondary" id="editPhotoBtn" onclick="App.handleEditPhoto()">
+                        <button class="btn btn-secondary" id="editPhotoBtn">
                             <i class="fas fa-edit"></i> Edit Photo
                         </button>
-                        <button class="btn btn-danger" id="deletePhotoBtn" onclick="App.handleDeletePhoto()">
+                        <button class="btn btn-danger" id="deletePhotoBtn">
                             <i class="fas fa-trash"></i> Delete Photo
                         </button>
                     </div>
@@ -274,6 +240,63 @@
                         </form>
                     </div>
                 </div>
+            </div>
+            <!-- Edit Photo Form -->
+            <div class="photo-edit hidden" id="photoEdit">
+                <h2><i class="fas fa-edit"></i> Edit Photo</h2>
+                <form id="editPhotoForm">
+                    <!-- Image Upload Section -->
+                    <div class="form-group">
+                        <label><i class="fas fa-image"></i> Update Media (optional)</label>
+                        <div class="edit-image-preview" id="editImagePreview">
+                            <img id="editPreviewImage" src="" alt="Current photo">
+                            <button type="button" class="btn btn-outline btn-sm" id="changeImageBtn">
+                                <i class="fas fa-camera"></i> Change Media
+                            </button>
+                            <input type="file" id="editPhotoInput" accept="image/*,video/*" hidden>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editPhotoTitle">Title *</label>
+                        <input type="text" id="editPhotoTitle" required placeholder="Enter media title">
+                    </div>
+                    <div class="form-group">
+                        <label for="editPhotoCaption">Caption</label>
+                        <textarea id="editPhotoCaption" rows="3" placeholder="Describe your media..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editPhotoLocation">Location</label>
+                        <input type="text" id="editPhotoLocation" placeholder="Where was this taken or recorded?">
+                    </div>
+                    <div class="form-group">
+                        <label for="editPhotoPeople">People (comma separated)</label>
+                        <input type="text" id="editPhotoPeople" placeholder="John, Jane, etc.">
+                    </div>
+                    <div class="form-group">
+                        <label for="editPhotoTags">Tags (comma separated)</label>
+                        <input type="text" id="editPhotoTags" placeholder="nature, landscape, sunset">
+                    </div>
+
+                    <!-- AI Features -->
+                    <div class="ai-features">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="editAutoTags" checked>
+                            <span><i class="fas fa-robot"></i> Auto-generate tags using AI</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="editContentModeration" checked>
+                            <span><i class="fas fa-shield-alt"></i> Content moderation</span>
+                        </label>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelEditBtn">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -435,13 +458,29 @@
     <script src="js/auth.js"></script>
     <script src="js/app.js"></script>
     <script>
-        // Close modals on overlay click
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    this.closeModal(modal.id);
-                }
-            });
+        // Restore modal overlay click-to-close behavior
+        document.addEventListener('click', function (event) {
+            var target = event.target;
+
+            // Check if the clicked element is a modal overlay
+            var isOverlay = target.classList && target.classList.contains('modal-overlay');
+            if (!isOverlay && target.matches && target.matches('[data-modal-overlay]')) {
+                isOverlay = true;
+            }
+
+            if (!isOverlay) {
+                return;
+            }
+
+            // Find the nearest modal container
+            var modal = target.closest('.modal');
+            if (!modal) {
+                return;
+            }
+
+            // Attempt to close the modal in a non-invasive way
+            modal.classList.remove('is-active', 'open', 'visible');
+            modal.setAttribute('aria-hidden', 'true');
         });
     </script>
 </body>

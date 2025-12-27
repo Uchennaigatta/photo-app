@@ -22,6 +22,11 @@ const App = {
     },
 
     bindEvents() {
+                // Edit Photo Modal: ensure form submit is always handled
+                const editPhotoForm = document.getElementById('editPhotoForm');
+                if (editPhotoForm) {
+                    editPhotoForm.addEventListener('submit', (e) => this.handleSaveEdit(e));
+                }
         // Navigation
         document.getElementById('navToggle').addEventListener('click', this.toggleMobileNav);
         document.getElementById('homeLink').addEventListener('click', (e) => this.navigateTo(e, 'home'));
@@ -88,6 +93,23 @@ const App = {
         });
         document.getElementById('likeBtn').addEventListener('click', () => this.handleLike());
 
+        // Edit and Delete buttons in photo modal
+        document.getElementById('editPhotoBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.handleEditPhoto();
+        });
+        document.getElementById('deletePhotoBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.handleDeletePhoto();
+        });
+
+        // Cancel edit button
+        document.getElementById('cancelEditBtn').addEventListener('click', () => this.handleCancelEdit());
+
+        // Edit image upload
+        document.getElementById('changeImageBtn').addEventListener('click', () => document.getElementById('editPhotoInput').click());
+        document.getElementById('editPhotoInput').addEventListener('change', (e) => this.handleEditFileSelect(e));
+
         // Gallery filters
         document.querySelectorAll('.filter-btn').forEach(btn => {
             btn.addEventListener('click', (e) => this.handleFilter(e));
@@ -109,6 +131,9 @@ const App = {
                 if (e.target === modal) {
                     this.closeModal(modal.id);
                 }
+            });
+            modal.querySelector('.modal-content').addEventListener('click', (e) => {
+                e.stopPropagation();
             });
         });
 
@@ -165,27 +190,27 @@ const App = {
             this.openModal('authModal');
             return;
         }
-        
+
         // Update navigation UI
         document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
         document.getElementById('myPhotosLink')?.classList.add('active');
-        
+
         // Hide hero and features sections
         document.getElementById('heroSection').classList.add('hidden');
         document.getElementById('featuresSection').classList.add('hidden');
-        
+
         // Update gallery title
         document.querySelector('.gallery-header h2').innerHTML = '<i class="fas fa-images"></i> My Uploaded Photos';
-        
+
         // Set filter to show only user's photos
         this.viewingMyPhotos = true;
         this.currentPage = 1;
         this.photos = [];
         this.loadMyPhotos();
-        
+
         // Scroll to gallery
         this.scrollToGallery();
-        
+
         // Close dropdown if open
         document.getElementById('userDropdown').classList.remove('show');
     },
@@ -195,11 +220,11 @@ const App = {
         const photoGrid = document.getElementById('photoGrid');
         const noPhotos = document.getElementById('noPhotos');
         const loadMore = document.getElementById('loadMore');
-        
+
         loadingSpinner.classList.add('show');
         noPhotos.classList.remove('show');
         loadMore.classList.remove('show');
-        
+
         try {
             const user = auth.getUser();
             const response = await api.getPhotos({
@@ -207,20 +232,20 @@ const App = {
                 limit: 12,
                 creatorId: user.id // Filter by current user's ID
             });
-            
+
             if (response.success) {
                 const newPhotos = response.data || [];
                 this.photos = this.currentPage === 1 ? newPhotos : [...this.photos, ...newPhotos];
                 this.hasMore = response.pagination?.hasMore || false;
-                
+
                 if (this.currentPage === 1) {
                     photoGrid.innerHTML = '';
                 }
-                
+
                 if (newPhotos.length > 0) {
                     this.renderPhotos(newPhotos);
                 }
-                
+
                 if (this.photos.length === 0) {
                     photoGrid.innerHTML = `
                         <div class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
@@ -287,7 +312,7 @@ const App = {
     switchAuthTab(tab) {
         document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
         document.querySelector(`.auth-tab[data-tab="${tab}"]`).classList.add('active');
-        
+
         document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
         document.getElementById(`${tab}Form`).classList.add('active');
     },
@@ -334,28 +359,82 @@ const App = {
     previewFile(file) {
         // Validate file
         if (!CONFIG.ALLOWED_TYPES.includes(file.type)) {
-            showToast('Invalid file type. Please upload an image.', 'error');
+            showToast('Invalid file type. Please upload an image or video.', 'error');
             return;
         }
         if (file.size > CONFIG.MAX_FILE_SIZE) {
-            showToast('File too large. Maximum size is 10MB.', 'error');
+            showToast(`File too large. Maximum size is ${CONFIG.MAX_FILE_SIZE / (1024 * 1024)}MB.`, 'error');
             return;
         }
 
         const reader = new FileReader();
         reader.onload = (e) => {
-            document.getElementById('previewImage').src = e.target.result;
+            const previewContainer = document.getElementById('uploadPreview');
+            const imagePreview = document.getElementById('previewImage');
+            
+            // Clear any existing video element
+            const existingVideo = previewContainer.querySelector('video');
+            if (existingVideo) {
+                existingVideo.remove();
+            }
+            
+            if (file.type.startsWith('video/')) {
+                // Create video element for preview
+                const videoElement = document.createElement('video');
+                videoElement.src = e.target.result;
+                videoElement.controls = true;
+                videoElement.style.maxWidth = '100%';
+                videoElement.style.maxHeight = '300px';
+                videoElement.style.borderRadius = '8px';
+                
+                // Replace image with video
+                imagePreview.style.display = 'none';
+                previewContainer.insertBefore(videoElement, imagePreview.nextSibling);
+            } else {
+                // Show image preview
+                imagePreview.src = e.target.result;
+                imagePreview.style.display = 'block';
+            }
+            
             document.getElementById('uploadZone').classList.add('hidden');
-            document.getElementById('uploadPreview').classList.add('show');
+            previewContainer.classList.add('show');
         };
         reader.readAsDataURL(file);
     },
 
     removePreview() {
         document.getElementById('photoInput').value = '';
-        document.getElementById('previewImage').src = '';
-        document.getElementById('uploadPreview').classList.remove('show');
+        const previewContainer = document.getElementById('uploadPreview');
+        const imagePreview = document.getElementById('previewImage');
+        
+        // Remove any video element
+        const videoElement = previewContainer.querySelector('video');
+        if (videoElement) {
+            videoElement.remove();
+        }
+        
+        // Reset image preview
+        imagePreview.src = '';
+        imagePreview.style.display = 'block';
+        
+        previewContainer.classList.remove('show');
         document.getElementById('uploadZone').classList.remove('hidden');
+    },
+
+    resetUploadForm() {
+        // Reset form fields
+        document.getElementById('uploadForm').reset();
+        
+        // Reset preview
+        this.removePreview();
+        
+        // Reset progress
+        document.getElementById('uploadProgress').classList.remove('show');
+        document.getElementById('progressFill').style.width = '0%';
+        document.getElementById('progressText').textContent = 'Uploading... 0%';
+        
+        // Re-enable upload button
+        document.getElementById('uploadBtn').disabled = false;
     },
 
     async handleUpload(e) {
@@ -390,8 +469,8 @@ const App = {
         try {
             await api.uploadPhoto(formData, (percent) => {
                 progressFill.style.width = `${percent}%`;
-                progressText.textContent = percent < 100 
-                    ? `Uploading... ${percent}%` 
+                progressText.textContent = percent < 100
+                    ? `Uploading... ${percent}%`
                     : 'Processing with AI...';
             });
 
@@ -408,9 +487,51 @@ const App = {
         }
     },
 
-    resetUploadForm() {
-        document.getElementById('uploadForm').reset();
-        this.removePreview();
+    // Handle file selection for edit
+    handleEditFileSelect(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file
+            if (!CONFIG.ALLOWED_TYPES.includes(file.type)) {
+                showToast('Invalid file type. Please upload an image or video.', 'error');
+                return;
+            }
+            if (file.size > CONFIG.MAX_FILE_SIZE) {
+                showToast(`File too large. Maximum size is ${CONFIG.MAX_FILE_SIZE / (1024 * 1024)}MB.`, 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const editPreview = document.getElementById('editImagePreview');
+                const imagePreview = document.getElementById('editPreviewImage');
+                
+                // Clear any existing video element
+                const existingVideo = editPreview.querySelector('video');
+                if (existingVideo) {
+                    existingVideo.remove();
+                }
+                
+                if (file.type.startsWith('video/')) {
+                    // Create video element for preview
+                    const videoElement = document.createElement('video');
+                    videoElement.src = e.target.result;
+                    videoElement.controls = true;
+                    videoElement.style.maxWidth = '100%';
+                    videoElement.style.maxHeight = '200px';
+                    videoElement.style.borderRadius = '8px';
+                    
+                    // Replace image with video
+                    imagePreview.style.display = 'none';
+                    editPreview.insertBefore(videoElement, imagePreview.nextSibling);
+                } else {
+                    // Show image preview
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
     },
 
     // Photos
@@ -419,7 +540,7 @@ const App = {
             // For demo, use mock data
             // const stats = await api.getStats();
             const stats = { photos: 150, creators: 25, views: 10000 };
-            
+
             animateNumber('totalPhotos', stats.photos);
             animateNumber('totalCreators', stats.creators);
             animateNumber('totalViews', stats.views);
@@ -453,7 +574,7 @@ const App = {
                 sort: this.currentSort,
                 search: this.currentSearch
             });
-            
+
             if (response.success) {
                 const newPhotos = response.data || [];
                 this.photos = reset ? newPhotos : [...this.photos, ...newPhotos];
@@ -485,7 +606,7 @@ const App = {
 
     renderPhotos(photos) {
         const photoGrid = document.getElementById('photoGrid');
-        
+
         photos.forEach(photo => {
             const card = document.createElement('div');
             card.className = 'photo-card';
@@ -495,9 +616,18 @@ const App = {
             const comments = photo.comments || 0;
             const creatorAvatar = photo.creator?.avatar || `https://ui-avatars.com/api/?name=User&background=6366f1&color=fff`;
             const creatorName = photo.creator?.name || 'Unknown';
+            
+            // Determine if media is video or image
+            const isVideo = photo.mediaType === 'video';
+            
+            const mediaElement = isVideo 
+                ? `<video src="${photo.imageUrl}" muted style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px 8px 0 0;" preload="metadata"></video>`
+                : `<img src="${photo.imageUrl}" alt="${photo.title}" loading="lazy" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px 8px 0 0;">`;
+            
             card.innerHTML = `
                 <div class="photo-card-image">
-                    <img src="${photo.imageUrl}" alt="${photo.title}" loading="lazy">
+                    ${mediaElement}
+                    ${isVideo ? '<i class="fas fa-play-circle video-indicator"></i>' : ''}
                 </div>
                 <div class="photo-card-overlay">
                     <div class="photo-card-info">
@@ -523,7 +653,7 @@ const App = {
                     </div>
                 </div>
             `;
-            
+
             card.addEventListener('click', () => this.openPhotoModal(photo));
             photoGrid.appendChild(card);
         });
@@ -554,32 +684,47 @@ const App = {
     // Photo Modal
     openPhotoModal(photo) {
         this.currentPhoto = photo;
+
+        // Determine if media is video or image
+        const isVideo = photo.mediaType === 'video';
         
-        document.getElementById('modalImage').src = photo.imageUrl;
+        const modalImage = document.getElementById('modalImage');
+        const modalVideo = document.getElementById('modalVideo');
+        
+        if (isVideo) {
+            modalImage.style.display = 'none';
+            modalVideo.style.display = 'block';
+            modalVideo.src = photo.imageUrl;
+        } else {
+            modalVideo.style.display = 'none';
+            modalImage.style.display = 'block';
+            modalImage.src = photo.imageUrl;
+        }
+        
         document.getElementById('modalTitle').textContent = photo.title;
         document.getElementById('modalCaption').textContent = photo.caption || '';
         document.getElementById('creatorAvatar').src = photo.creator?.avatar || `https://ui-avatars.com/api/?name=User&background=6366f1&color=fff`;
         document.getElementById('creatorName').textContent = photo.creator?.name || 'Unknown';
         document.getElementById('photoDate').textContent = formatDate(photo.createdAt);
-        
+
         // Location & People
         const locationEl = document.getElementById('modalLocation');
         const peopleEl = document.getElementById('modalPeople');
-        
+
         if (photo.location) {
             locationEl.querySelector('span').textContent = photo.location;
             locationEl.classList.remove('hidden');
         } else {
             locationEl.classList.add('hidden');
         }
-        
+
         if (photo.people && photo.people.length) {
             peopleEl.querySelector('span').textContent = photo.people.join(', ');
             peopleEl.classList.remove('hidden');
         } else {
             peopleEl.classList.add('hidden');
         }
-        
+
         // Tags
         const tagsEl = document.getElementById('modalTags');
         tagsEl.innerHTML = '';
@@ -591,12 +736,12 @@ const App = {
                 tagsEl.appendChild(span);
             });
         }
-        
+
         // AI Analysis
         const aiAnalysis = document.getElementById('aiAnalysis');
         const aiTags = document.getElementById('aiTags');
         const aiDescription = document.getElementById('aiDescription');
-        
+
         if (photo.aiAnalysis && photo.aiAnalysis.tags) {
             aiAnalysis.classList.remove('hidden');
             aiTags.innerHTML = '';
@@ -609,43 +754,47 @@ const App = {
         } else {
             aiAnalysis.classList.add('hidden');
         }
-        
+
         // Rating
         const rating = typeof photo.rating === 'number' ? photo.rating.toFixed(1) : '0.0';
         document.getElementById('avgRating').textContent = rating;
         document.getElementById('ratingCount').textContent = `(${photo.ratingCount || 0} ratings)`;
         this.resetStars();
-        
+
         // Likes
         document.getElementById('likeCount').textContent = photo.likes;
         const likeBtn = document.getElementById('likeBtn');
         likeBtn.classList.toggle('liked', photo.userLiked);
         likeBtn.querySelector('i').className = photo.userLiked ? 'fas fa-heart' : 'far fa-heart';
-        
+
         // Show Edit/Delete buttons for photo owner
         const photoActions = document.getElementById('photoOwnerActions');
         if (photoActions) {
             const user = auth.getUser();
-            if (user && photo.creatorId === user.id) {
+            if (user && photo.creator?.id === user.id) {
                 photoActions.classList.remove('hidden');
             } else {
                 photoActions.classList.add('hidden');
             }
         }
-        
+
         // Comments
         this.loadComments(photo);
-        
+
+        // Ensure we're in view mode
+        document.querySelector('.photo-detail').classList.remove('hidden');
+        document.getElementById('photoEdit').classList.add('hidden');
+
         this.openModal('photoModal');
     },
 
     loadComments(photo) {
         const commentsList = document.getElementById('commentsList');
         const commentCount = document.getElementById('commentCount');
-        
+
         commentsList.innerHTML = '';
         commentCount.textContent = `(${photo.commentsData?.length || 0})`;
-        
+
         if (photo.commentsData && photo.commentsData.length) {
             photo.commentsData.forEach(comment => {
                 const div = document.createElement('div');
@@ -667,19 +816,19 @@ const App = {
 
     async handleComment(e) {
         e.preventDefault();
-        
+
         if (!auth.isAuthenticated()) {
             showToast('Please login to comment', 'warning');
             this.closeModal('photoModal');
             this.openModal('authModal');
             return;
         }
-        
+
         const input = document.getElementById('commentInput');
         const text = input.value.trim();
-        
+
         if (!text) return;
-        
+
         try {
             // For demo, add mock comment
             const newComment = {
@@ -688,18 +837,18 @@ const App = {
                 user: auth.getUser(),
                 createdAt: new Date().toISOString()
             };
-            
+
             if (!this.currentPhoto.commentsData) {
                 this.currentPhoto.commentsData = [];
             }
             this.currentPhoto.commentsData.unshift(newComment);
             this.currentPhoto.comments++;
-            
+
             this.loadComments(this.currentPhoto);
             input.value = '';
-            
+
             showToast('Comment added!', 'success');
-            
+
             // await api.addComment(this.currentPhoto.id, text);
         } catch (error) {
             showToast('Failed to add comment', 'error');
@@ -722,15 +871,15 @@ const App = {
             showToast('Please login to rate', 'warning');
             return;
         }
-        
+
         const rating = parseInt(e.target.dataset.rating);
-        
+
         try {
             this.currentPhoto.userRating = rating;
             this.highlightStars(rating);
-            
+
             showToast('Rating submitted!', 'success');
-            
+
             // await api.ratePhoto(this.currentPhoto.id, rating);
         } catch (error) {
             showToast('Failed to submit rating', 'error');
@@ -742,18 +891,18 @@ const App = {
             showToast('Please login to like photos', 'warning');
             return;
         }
-        
+
         const likeBtn = document.getElementById('likeBtn');
         const likeCount = document.getElementById('likeCount');
-        
+
         try {
             this.currentPhoto.userLiked = !this.currentPhoto.userLiked;
             this.currentPhoto.likes += this.currentPhoto.userLiked ? 1 : -1;
-            
+
             likeBtn.classList.toggle('liked', this.currentPhoto.userLiked);
             likeBtn.querySelector('i').className = this.currentPhoto.userLiked ? 'fas fa-heart' : 'far fa-heart';
             likeCount.textContent = this.currentPhoto.likes;
-            
+
             // if (this.currentPhoto.userLiked) {
             //     await api.likePhoto(this.currentPhoto.id);
             // } else {
@@ -767,80 +916,208 @@ const App = {
     // Delete photo (creator only)
     async handleDeletePhoto() {
         if (!this.currentPhoto) return;
-        
+
         const user = auth.getUser();
-        if (!user || this.currentPhoto.creatorId !== user.id) {
+        if (!user || this.currentPhoto.creator?.id !== user.id) {
             showToast('You can only delete your own photos', 'error');
             return;
         }
-        
+
         if (!confirm('Are you sure you want to delete this photo? This cannot be undone.')) {
             return;
         }
-        
+
         try {
             await api.deletePhoto(this.currentPhoto.id);
             showToast('Photo deleted successfully!', 'success');
             this.closeModal('photoModal');
-            
+
             // Remove from local array and refresh view
             this.photos = this.photos.filter(p => p.id !== this.currentPhoto.id);
             document.getElementById('photoGrid').innerHTML = '';
             this.renderPhotos(this.photos);
-            
+
             this.currentPhoto = null;
         } catch (error) {
             showToast(error.message || 'Failed to delete photo', 'error');
         }
     },
 
-    // Edit photo (creator only) - opens edit modal
-    handleEditPhoto() {
+    // Edit photo (creator only) - switches to edit mode in same modal
+    handleEditPhoto(e) {
+        if (e) e.preventDefault();
+
+        // Check if we have a current photo
         if (!this.currentPhoto) return;
-        
+
         const user = auth.getUser();
-        if (!user || this.currentPhoto.creatorId !== user.id) {
+        if (!user || this.currentPhoto.creator?.id !== user.id) {
             showToast('You can only edit your own photos', 'error');
             return;
         }
-        
+
+        // Hide photo detail, show edit form
+        document.querySelector('.photo-detail').classList.add('hidden');
+        document.getElementById('photoEdit').classList.remove('hidden');
+
+        // Initialize image preview with current photo
+        document.getElementById('editPreviewImage').src = this.currentPhoto.imageUrl;
+        document.getElementById('editPhotoInput').value = ''; // Clear any previous selection
+
         // Populate edit form with current values
         document.getElementById('editPhotoTitle').value = this.currentPhoto.title || '';
         document.getElementById('editPhotoCaption').value = this.currentPhoto.caption || '';
         document.getElementById('editPhotoLocation').value = this.currentPhoto.location || '';
         document.getElementById('editPhotoPeople').value = (this.currentPhoto.people || []).join(', ');
         document.getElementById('editPhotoTags').value = (this.currentPhoto.tags || []).join(', ');
-        
-        this.closeModal('photoModal');
-        this.openModal('editPhotoModal');
+
+        // Set AI options (default to checked)
+        document.getElementById('editAutoTags').checked = true;
+        document.getElementById('editContentModeration').checked = true;
     },
 
     // Save edited photo
     async handleSaveEdit(e) {
         e.preventDefault();
-        
+
         if (!this.currentPhoto) return;
-        
+
+        const fileInput = document.getElementById('editPhotoInput');
+        const file = fileInput.files[0];
+
         const updates = {
             title: document.getElementById('editPhotoTitle').value,
             caption: document.getElementById('editPhotoCaption').value,
             location: document.getElementById('editPhotoLocation').value,
             people: document.getElementById('editPhotoPeople').value.split(',').map(p => p.trim()).filter(p => p),
-            tags: document.getElementById('editPhotoTags').value.split(',').map(t => t.trim().toLowerCase()).filter(t => t)
+            tags: document.getElementById('editPhotoTags').value.split(',').map(t => t.trim().toLowerCase()).filter(t => t),
+            autoTags: document.getElementById('editAutoTags').checked,
+            contentModeration: document.getElementById('editContentModeration').checked
         };
-        
+
         try {
-            await api.updatePhoto(this.currentPhoto.id, updates);
+            if (file) {
+                // If new image uploaded, use FormData
+                const formData = new FormData();
+                formData.append('photo', file);
+                formData.append('title', updates.title);
+                formData.append('caption', updates.caption);
+                formData.append('location', updates.location);
+                formData.append('people', updates.people.join(','));
+                formData.append('tags', updates.tags.join(','));
+                formData.append('autoTags', updates.autoTags.toString());
+                formData.append('contentModeration', updates.contentModeration.toString());
+
+                const response = await api.updatePhotoWithImage(this.currentPhoto.id, formData);
+                if (response.success) {
+                    // Update local photo data
+                    Object.assign(this.currentPhoto, updates);
+                    if (response.data.imageUrl) {
+                        this.currentPhoto.imageUrl = response.data.imageUrl;
+                    }
+                    if (response.data.aiAnalysis) {
+                        this.currentPhoto.aiAnalysis = response.data.aiAnalysis;
+                    }
+                    // Update tags if AI added new ones
+                    if (response.data.tags) {
+                        this.currentPhoto.tags = response.data.tags;
+                    }
+                } else {
+                    throw new Error(response.error || 'Failed to update photo');
+                }
+            } else {
+                // No new image, just update metadata
+                const response = await api.updatePhoto(this.currentPhoto.id, updates);
+                if (response.success) {
+                    Object.assign(this.currentPhoto, updates);
+                    if (response.data.aiAnalysis) {
+                        this.currentPhoto.aiAnalysis = response.data.aiAnalysis;
+                    }
+                    // Update tags if AI added new ones
+                    if (response.data.tags) {
+                        this.currentPhoto.tags = response.data.tags;
+                    }
+                } else {
+                    throw new Error(response.error || 'Failed to update photo');
+                }
+            }
+
             showToast('Photo updated successfully!', 'success');
-            this.closeModal('editPhotoModal');
-            
-            // Update local data
-            Object.assign(this.currentPhoto, updates);
-            
-            // Refresh the gallery
+
+            // Switch back to view mode and update display
+            this.showPhotoView();
+
+            // Refresh the gallery to show updated photo
             this.loadPhotos(true);
         } catch (error) {
             showToast(error.message || 'Failed to update photo', 'error');
+        }
+    },
+
+    // Cancel edit - switch back to view mode
+    handleCancelEdit() {
+        this.showPhotoView();
+    },
+
+    // Show photo view mode
+    showPhotoView() {
+        // Hide edit form, show photo detail
+        document.getElementById('photoEdit').classList.add('hidden');
+        document.querySelector('.photo-detail').classList.remove('hidden');
+
+        // Update the main image
+        document.getElementById('modalImage').src = this.currentPhoto.imageUrl;
+
+        // Update the display with current photo data
+        document.getElementById('modalTitle').textContent = this.currentPhoto.title;
+        document.getElementById('modalCaption').textContent = this.currentPhoto.caption || '';
+
+        // Update location
+        const locationEl = document.getElementById('modalLocation');
+        if (this.currentPhoto.location) {
+            locationEl.querySelector('span').textContent = this.currentPhoto.location;
+            locationEl.classList.remove('hidden');
+        } else {
+            locationEl.classList.add('hidden');
+        }
+
+        // Update people
+        const peopleEl = document.getElementById('modalPeople');
+        if (this.currentPhoto.people && this.currentPhoto.people.length) {
+            peopleEl.querySelector('span').textContent = this.currentPhoto.people.join(', ');
+            peopleEl.classList.remove('hidden');
+        } else {
+            peopleEl.classList.add('hidden');
+        }
+
+        // Update tags
+        const tagsEl = document.getElementById('modalTags');
+        tagsEl.innerHTML = '';
+        if (this.currentPhoto.tags && this.currentPhoto.tags.length) {
+            this.currentPhoto.tags.forEach(tag => {
+                const span = document.createElement('span');
+                span.className = 'tag';
+                span.textContent = `#${tag}`;
+                tagsEl.appendChild(span);
+            });
+        }
+
+        // Update AI Analysis
+        const aiAnalysis = document.getElementById('aiAnalysis');
+        const aiTags = document.getElementById('aiTags');
+        const aiDescription = document.getElementById('aiDescription');
+
+        if (this.currentPhoto.aiAnalysis && this.currentPhoto.aiAnalysis.tags) {
+            aiAnalysis.classList.remove('hidden');
+            aiTags.innerHTML = '';
+            this.currentPhoto.aiAnalysis.tags.forEach(tag => {
+                const span = document.createElement('span');
+                span.textContent = tag;
+                aiTags.appendChild(span);
+            });
+            aiDescription.textContent = this.currentPhoto.aiAnalysis.description || '';
+        } else {
+            aiAnalysis.classList.add('hidden');
         }
     },
 
@@ -865,7 +1142,7 @@ const App = {
             'https://images.unsplash.com/photo-1516321497487-e288fb19713f?w=800',
             'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=800'
         ];
-        
+
         return mockImages.map((url, index) => ({
             id: `photo-${index + 1}`,
             title: `Beautiful Photo ${index + 1}`,
@@ -914,24 +1191,24 @@ function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    
+
     const icons = {
         success: 'fa-check-circle',
         error: 'fa-exclamation-circle',
         warning: 'fa-exclamation-triangle',
         info: 'fa-info-circle'
     };
-    
+
     toast.innerHTML = `
         <i class="fas ${icons[type]}"></i>
         <span class="toast-message">${message}</span>
         <button class="toast-close">&times;</button>
     `;
-    
+
     toast.querySelector('.toast-close').addEventListener('click', () => toast.remove());
-    
+
     container.appendChild(toast);
-    
+
     setTimeout(() => {
         toast.style.animation = 'slideIn 0.3s ease reverse';
         setTimeout(() => toast.remove(), 300);
@@ -942,12 +1219,12 @@ function formatDate(dateString) {
     const date = new Date(dateString);
     const now = new Date();
     const diff = now - date;
-    
+
     if (diff < 60000) return 'Just now';
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
     if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
-    
+
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
@@ -957,7 +1234,7 @@ function animateNumber(elementId, target) {
     const start = 0;
     const increment = target / (duration / 16);
     let current = start;
-    
+
     const animate = () => {
         current += increment;
         if (current >= target) {
@@ -967,7 +1244,7 @@ function animateNumber(elementId, target) {
             requestAnimationFrame(animate);
         }
     };
-    
+
     animate();
 }
 

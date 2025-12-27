@@ -16,8 +16,8 @@ const CONFIG = {
     PHOTOS_PER_PAGE: 12,
     
     // File upload limits
-    MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
-    ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+    MAX_FILE_SIZE: 100 * 1024 * 1024, // 100MB for videos
+    ALLOWED_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/avi', 'video/mov', 'video/wmv'],
     
     // Feature flags
     FEATURES: {

@@ -145,6 +145,17 @@ class ApiService {
         });
     }
 
+    async updatePhotoWithImage(photoId, formData) {
+        const headers = this.getHeaders(true);
+        delete headers['Content-Type']; // Let browser set it for FormData
+
+        return this.request(`/photos/${photoId}`, {
+            method: 'PUT',
+            headers,
+            body: formData
+        });
+    }
+
     // === Comments APIs ===
     async getComments(photoId) {
         return this.request(`/photos/${photoId}/comments`, {
