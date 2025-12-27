@@ -8,6 +8,8 @@
 # - Automated testing and deployment
 # - Version control integration
 # - Production-ready deployment pipeline
+#
+# Note: Uses Flex Consumption deployment method with publish profile
 # ============================================================
 
 name: PhotoShare CI/CD Pipeline
@@ -52,9 +54,17 @@ jobs:
 
       - name: ✅ Build verification complete
         run: |
-          echo "Build completed successfully!"
-          echo "Functions found:"
+          echo "=============================================="
+          echo "✅ BUILD SUCCESSFUL"
+          echo "=============================================="
+          echo "Node.js version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo ""
+          echo "📁 Functions found:"
           ls -la src/functions/
+          echo ""
+          echo "📦 Dependencies installed successfully"
+          echo "=============================================="
 
   # ============================================================
   # Job 2: Deploy Backend to Azure Functions
@@ -78,18 +88,44 @@ jobs:
       - name: 📦 Install production dependencies
         run: npm ci --production
 
+      - name: 📁 Prepare deployment package
+        run: |
+          echo "Creating deployment package..."
+          # Remove unnecessary files for deployment
+          rm -rf .git .github frontend *.md test-* .funcignore
+          echo "Package contents:"
+          ls -la
+
       - name: 🚀 Deploy to Azure Functions
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
           package: .
           publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+          respect-funcignore: true
 
       - name: ✅ Deployment Summary
+        if: success()
         run: |
           echo "=============================================="
           echo "🎉 DEPLOYMENT COMPLETE!"
           echo "=============================================="
           echo "Function App: ${{ env.AZURE_FUNCTIONAPP_NAME }}"
-          echo "API URL: https://photoshare-func-hscrezebbubqdhd7.switzerlandnorth-01.azurewebsites.net/api"
+          echo "API URL: https://photoshare-func.azurewebsites.net/api"
+          echo "=============================================="
+          echo ""
+          echo "Test your deployment:"
+          echo "curl https://photoshare-func.azurewebsites.net/api/stats"
+
+      - name: ❌ Deployment Failed
+        if: failure()
+        run: |
+          echo "=============================================="
+          echo "❌ DEPLOYMENT FAILED"
+          echo "=============================================="
+          echo "Please check the logs above for details."
+          echo "Common issues:"
+          echo "  - Invalid publish profile"
+          echo "  - Function app not running"
+          echo "  - Network connectivity issues"
           echo "=============================================="
