@@ -197,3 +197,65 @@ app.http('deletePhoto', {
         }
     }
 });
+
+// Update photo (Creator only, own photos)
+app.http('updatePhoto', {
+    methods: ['PUT'],
+    authLevel: 'anonymous',
+    route: 'photos/{photoId}',
+    handler: async (request, context) => {
+        const photoId = request.params.photoId;
+        context.log(`Update photo: ${photoId}`);
+
+        try {
+            const user = await verifyToken(request);
+            if (!user) {
+                return { status: 401, jsonBody: { success: false, message: 'Unauthorized' } };
+            }
+
+            const container = await getContainer('photos');
+            const { resource: photo } = await container.item(photoId, photoId).read();
+
+            if (!photo) {
+                return { status: 404, jsonBody: { success: false, message: 'Photo not found' } };
+            }
+
+            if (photo.creatorId !== user.id) {
+                return { status: 403, jsonBody: { success: false, message: 'Not authorized to edit this photo' } };
+            }
+
+            const updates = await request.json();
+            const allowedUpdates = ['title', 'caption', 'location', 'people', 'tags'];
+            
+            // Apply allowed updates
+            allowedUpdates.forEach(field => {
+                if (updates[field] !== undefined) {
+                    photo[field] = updates[field];
+                }
+            });
+            
+            // Update category based on first tag
+            if (updates.tags && updates.tags.length > 0) {
+                photo.category = updates.tags[0];
+            }
+            
+            photo.updatedAt = new Date().toISOString();
+
+            await container.item(photoId, photoId).replace(photo);
+
+            return {
+                jsonBody: { 
+                    success: true, 
+                    message: 'Photo updated successfully',
+                    data: photo
+                }
+            };
+        } catch (error) {
+            context.log('Update error:', error);
+            return {
+                status: 500,
+                jsonBody: { success: false, message: 'Failed to update photo' }
+            };
+        }
+    }
+});

@@ -138,6 +138,13 @@ class ApiService {
         });
     }
 
+    async updatePhoto(photoId, updates) {
+        return this.request(`/photos/${photoId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updates)
+        });
+    }
+
     // === Comments APIs ===
     async getComments(photoId) {
         return this.request(`/photos/${photoId}/comments`, {

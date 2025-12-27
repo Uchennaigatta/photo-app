@@ -99,14 +99,18 @@ input, textarea, select {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    color: white;
-    box-shadow: var(--shadow);
+    background: #0078d4;
+    color: #fff;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
 }
 
 .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-glow);
+    background: #005fa3;
 }
 
 .btn-outline {
@@ -118,6 +122,36 @@ input, textarea, select {
 .btn-outline:hover {
     border-color: var(--primary);
     color: var(--primary);
+}
+
+.btn-secondary {
+    background: #e5e5e5;
+    color: #222;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #cccccc;
+}
+
+.btn-danger {
+    background: #e74c3c;
+    color: #fff;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-danger:hover {
+    background: #c0392b;
 }
 
 .btn-lg {
@@ -928,6 +962,16 @@ input, textarea, select {
     padding: 12px 16px;
 }
 
+/* ===== Photo Owner Actions ===== */
+.photo-owner-actions {
+    margin: 16px 0 0 0;
+    display: flex;
+    gap: 12px;
+}
+.photo-owner-actions.hidden {
+    display: none;
+}
+
 /* ===== Hero Section ===== */
 .main-content {
     padding-top: 70px;
@@ -1524,6 +1568,71 @@ input, textarea, select {
         transform: translateX(0);
         opacity: 1;
     }
+}
+
+/* ===== Edit Photo Modal ===== */
+#editPhotoModal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.4);
+    justify-content: center;
+    align-items: center;
+}
+#editPhotoModal.active {
+    display: flex;
+}
+#editPhotoModal .modal-content {
+    background: #fff;
+    padding: 32px 24px 24px 24px;
+    border-radius: 8px;
+    min-width: 320px;
+    max-width: 90vw;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+    position: relative;
+}
+#editPhotoModal .modal-header {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 18px;
+}
+#editPhotoModal label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+#editPhotoModal input[type="text"],
+#editPhotoModal textarea {
+    width: 100%;
+    padding: 8px 10px;
+    margin-bottom: 16px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    resize: vertical;
+}
+#editPhotoModal .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+#editPhotoModal .close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 1.2rem;
+    color: #888;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+#editPhotoModal .close:hover {
+    color: #222;
 }
 
 /* ===== Responsive Design ===== */

@@ -622,6 +622,17 @@ const App = {
         likeBtn.classList.toggle('liked', photo.userLiked);
         likeBtn.querySelector('i').className = photo.userLiked ? 'fas fa-heart' : 'far fa-heart';
         
+        // Show Edit/Delete buttons for photo owner
+        const photoActions = document.getElementById('photoOwnerActions');
+        if (photoActions) {
+            const user = auth.getUser();
+            if (user && photo.creatorId === user.id) {
+                photoActions.classList.remove('hidden');
+            } else {
+                photoActions.classList.add('hidden');
+            }
+        }
+        
         // Comments
         this.loadComments(photo);
         
@@ -750,6 +761,86 @@ const App = {
             // }
         } catch (error) {
             showToast('Failed to update like', 'error');
+        }
+    },
+
+    // Delete photo (creator only)
+    async handleDeletePhoto() {
+        if (!this.currentPhoto) return;
+        
+        const user = auth.getUser();
+        if (!user || this.currentPhoto.creatorId !== user.id) {
+            showToast('You can only delete your own photos', 'error');
+            return;
+        }
+        
+        if (!confirm('Are you sure you want to delete this photo? This cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            await api.deletePhoto(this.currentPhoto.id);
+            showToast('Photo deleted successfully!', 'success');
+            this.closeModal('photoModal');
+            
+            // Remove from local array and refresh view
+            this.photos = this.photos.filter(p => p.id !== this.currentPhoto.id);
+            document.getElementById('photoGrid').innerHTML = '';
+            this.renderPhotos(this.photos);
+            
+            this.currentPhoto = null;
+        } catch (error) {
+            showToast(error.message || 'Failed to delete photo', 'error');
+        }
+    },
+
+    // Edit photo (creator only) - opens edit modal
+    handleEditPhoto() {
+        if (!this.currentPhoto) return;
+        
+        const user = auth.getUser();
+        if (!user || this.currentPhoto.creatorId !== user.id) {
+            showToast('You can only edit your own photos', 'error');
+            return;
+        }
+        
+        // Populate edit form with current values
+        document.getElementById('editPhotoTitle').value = this.currentPhoto.title || '';
+        document.getElementById('editPhotoCaption').value = this.currentPhoto.caption || '';
+        document.getElementById('editPhotoLocation').value = this.currentPhoto.location || '';
+        document.getElementById('editPhotoPeople').value = (this.currentPhoto.people || []).join(', ');
+        document.getElementById('editPhotoTags').value = (this.currentPhoto.tags || []).join(', ');
+        
+        this.closeModal('photoModal');
+        this.openModal('editPhotoModal');
+    },
+
+    // Save edited photo
+    async handleSaveEdit(e) {
+        e.preventDefault();
+        
+        if (!this.currentPhoto) return;
+        
+        const updates = {
+            title: document.getElementById('editPhotoTitle').value,
+            caption: document.getElementById('editPhotoCaption').value,
+            location: document.getElementById('editPhotoLocation').value,
+            people: document.getElementById('editPhotoPeople').value.split(',').map(p => p.trim()).filter(p => p),
+            tags: document.getElementById('editPhotoTags').value.split(',').map(t => t.trim().toLowerCase()).filter(t => t)
+        };
+        
+        try {
+            await api.updatePhoto(this.currentPhoto.id, updates);
+            showToast('Photo updated successfully!', 'success');
+            this.closeModal('editPhotoModal');
+            
+            // Update local data
+            Object.assign(this.currentPhoto, updates);
+            
+            // Refresh the gallery
+            this.loadPhotos(true);
+        } catch (error) {
+            showToast(error.message || 'Failed to update photo', 'error');
         }
     },
 

@@ -164,6 +164,42 @@
         </div>
     </div>
 
+    <!-- Edit Photo Modal -->
+    <div class="modal" id="editPhotoModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="App.closeModal('editPhotoModal')">&times;</button>
+            <h2><i class="fas fa-edit"></i> Edit Photo</h2>
+            <form id="editPhotoForm" onsubmit="App.handleSaveEdit(event)">
+                <div class="form-group">
+                    <label for="editPhotoTitle">Title *</label>
+                    <input type="text" id="editPhotoTitle" required placeholder="Enter photo title">
+                </div>
+                <div class="form-group">
+                    <label for="editPhotoCaption">Caption</label>
+                    <textarea id="editPhotoCaption" rows="3" placeholder="Describe your photo..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="editPhotoLocation">Location</label>
+                    <input type="text" id="editPhotoLocation" placeholder="Where was this taken?">
+                </div>
+                <div class="form-group">
+                    <label for="editPhotoPeople">People (comma separated)</label>
+                    <input type="text" id="editPhotoPeople" placeholder="John, Jane, etc.">
+                </div>
+                <div class="form-group">
+                    <label for="editPhotoTags">Tags (comma separated)</label>
+                    <input type="text" id="editPhotoTags" placeholder="nature, landscape, sunset">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="App.closeModal('editPhotoModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Photo Detail Modal -->
     <div class="modal" id="photoModal">
         <div class="modal-content photo-modal">
@@ -217,6 +253,15 @@
                                 <i class="fas fa-download"></i>
                             </button>
                         </div>
+                    </div>
+                    <!-- Edit/Delete buttons for photo owner -->
+                    <div class="photo-owner-actions hidden" id="photoOwnerActions">
+                        <button class="btn btn-secondary" id="editPhotoBtn" onclick="App.handleEditPhoto()">
+                            <i class="fas fa-edit"></i> Edit Photo
+                        </button>
+                        <button class="btn btn-danger" id="deletePhotoBtn" onclick="App.handleDeletePhoto()">
+                            <i class="fas fa-trash"></i> Delete Photo
+                        </button>
                     </div>
                     <div class="comments-section">
                         <h4><i class="fas fa-comments"></i> Comments <span id="commentCount">(0)</span></h4>
