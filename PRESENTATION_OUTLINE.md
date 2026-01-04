@@ -1,10 +1,10 @@
-# PhotoShare - Presentation Outline (12 Slides)
+# Python-App - Presentation Outline (12 Slides)
 ## For 5-Minute Video Demonstration
 
 ---
 
 ## Slide 1: Title Slide
-**PhotoShare - Cloud Native Photo Sharing Platform**
+# Python-App - Cloud Native Media Platform
 - Your Name
 - Date
 - Module Name
@@ -21,8 +21,9 @@
   - Geographic latency
 
 - **Why Scalable Solution?**
-  - Photo sharing apps need to handle variable loads
-  - Media files require efficient storage and delivery
+
+  - Media sharing apps need to handle variable loads
+  - Media files (photos/videos) require efficient storage and delivery
   - User experience demands low latency globally
 
 **Key Quote:** "Modern applications require elastic scaling and global distribution"
@@ -30,48 +31,54 @@
 ---
 
 ## Slide 3: Solution Overview (15% marks)
-**PhotoShare Architecture**
+
+**Python-App Architecture**
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        USERS                                │
-│              (Creators / Consumers)                         │
-└─────────────────┬───────────────────────────────────────────┘
-                  │
-                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Azure Static Website (CDN)                     │
-│                  Frontend (HTML/CSS/JS)                     │
-└─────────────────┬───────────────────────────────────────────┘
-                  │ REST API Calls
-                  ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Azure Functions (Serverless)                   │
-│    ┌─────────┬─────────┬─────────┬─────────┐               │
-│    │  Auth   │ Photos  │Comments │  Stats  │               │
-│    └─────────┴─────────┴─────────┴─────────┘               │
-└────────┬────────────┬────────────┬──────────────────────────┘
-         │            │            │
-         ▼            ▼            ▼
-┌─────────────┐ ┌───────────┐ ┌──────────────────┐
-│ Cosmos DB   │ │   Blob    │ │ Computer Vision  │
-│ (NoSQL)     │ │  Storage  │ │   (AI Service)   │
-└─────────────┘ └───────────┘ └──────────────────┘
+┌───────────────┐
+│    USERS      │
+└─────┬─────────┘
+  │
+  ▼
+┌──────────────────────────────┐
+│ Azure Static Web App (CDN)   │
+│  (HTML/CSS/JS Frontend)      │
+└─────┬───────────────┬────────┘
+  │ REST API      │
+  ▼               ▼
+┌───────────────┐ ┌───────────────┐
+│ Azure Functions│ │ Azure App Svc│
+│ (Python/Node)  │ │ (Optional)   │
+└─────┬──────────┘ └─────┬────────┘
+  │                  │
+  ▼                  ▼
+┌───────────────┐ ┌───────────────┐
+│ Cosmos DB     │ │ Blob Storage  │
+│ (NoSQL)       │ │ (Media files) │
+└───────────────┘ └───────────────┘
+  │
+  ▼
+┌───────────────┐
+│ Cognitive Svc │
+│ (AI/Moderation)│
+└───────────────┘
 ```
 
 ---
 
+
 ## Slide 4: Azure Services Used (15% marks)
 **Technology Stack**
 
-| Service | Purpose | Scalability Benefit |
-|---------|---------|---------------------|
-| **Azure Functions** | Serverless API | Auto-scales 0 to ∞ |
-| **Cosmos DB** | NoSQL Database | Global distribution, serverless |
-| **Blob Storage** | Photo storage | Unlimited capacity |
-| **Computer Vision** | AI image analysis | Managed service |
-| **Static Website** | Frontend hosting | CDN edge delivery |
-| **GitHub Actions** | CI/CD pipeline | Automated deployments |
+| Service                | Purpose                | Scalability Benefit         |
+|------------------------|------------------------|----------------------------|
+| Azure Functions        | Serverless API         | Auto-scales, event-driven  |
+| Cosmos DB              | NoSQL Database         | Global, serverless         |
+| Blob Storage           | Media storage          | Unlimited, pay-per-use     |
+| Computer Vision        | AI/Moderation          | Managed, scalable          |
+| Static Web App/CDN     | Frontend hosting       | Global edge delivery       |
+| GitHub Actions         | CI/CD pipeline         | Automated deployments      |
+| Azure Monitor/Insights | Monitoring/Health      | Real-time metrics/alerts   |
 
 ---
 
@@ -97,19 +104,20 @@
 
 ---
 
+
 ## Slide 6: Advanced Feature 1 - Cognitive Services (20% marks)
-**AI-Powered Image Analysis**
+**AI-Powered Media Analysis**
 
 **Features:**
-- **Auto-tagging**: AI generates relevant tags from image content
-- **Content Moderation**: Automatic rejection of inappropriate content
-- **Object Detection**: Identifies objects, scenes, faces
-- **Description Generation**: AI writes image descriptions
+- **Auto-tagging**: AI generates tags for images and videos
+- **Content Moderation**: Blocks inappropriate content
+- **Object/Scene Detection**: Identifies objects, scenes, faces
+- **Description Generation**: AI writes media descriptions
 
 **Demo Points:**
-1. Upload a photo with auto-tagging enabled
-2. Show AI-generated tags appearing automatically
-3. Show content moderation blocking inappropriate images
+1. Upload a photo or video with auto-tagging enabled
+2. Show AI-generated tags and moderation
+3. Show content moderation blocking inappropriate media
 
 **Azure Service:** Computer Vision API (Free tier: 5000 calls/month)
 
@@ -142,6 +150,7 @@ User Login → Validate Credentials → Generate JWT Token
 
 ---
 
+
 ## Slide 8: Advanced Feature 3 - CI/CD Pipeline (20% marks)
 **Automated Deployment with GitHub Actions**
 
@@ -166,39 +175,46 @@ Code Push → Build → Test → Deploy Backend → Deploy Frontend → Verify
 
 ---
 
-## Slide 9: Scalability Patterns (20% marks)
+## Slide 9: Advanced Feature 4 - Azure Monitoring & Observability
+**Health, Network, CPU, and More**
+- **Health Checks:** Azure App Service/Functions health endpoints
+- **Network Monitoring:** Azure Network Watcher (traffic, topology)
+- **CPU/Resource Usage:** Azure Monitor & Application Insights (CPU, memory, disk, request rates)
+- **Dashboards & Alerts:** Real-time metrics, auto-scaling triggers, alerting on failures
+- **Demo:** Show Azure Portal dashboards for health, network, and CPU
+
+---
+
+
+## Slide 10: Scalability Patterns & Data Architecture
 **How the Solution Scales**
 
-| Component | Scaling Method | Capacity |
-|-----------|----------------|----------|
-| **Functions** | Horizontal auto-scale | 0 to 200 instances |
-| **Cosmos DB** | Serverless RU scaling | Unlimited |
-| **Blob Storage** | Automatic | Unlimited |
-| **Frontend** | CDN edge caching | Global distribution |
+| Component      | Scaling Method           | Capacity         |
+|--------------- |-------------------------|------------------|
+| Functions      | Horizontal auto-scale    | 0 to 200+        |
+| Cosmos DB      | Serverless, partitioned  | Unlimited        |
+| Blob Storage   | Automatic, CDN-cached    | Unlimited        |
+| Frontend       | Edge-cached, global      | Unlimited        |
 
 **Design Patterns Applied:**
 - Serverless architecture (pay-per-use)
 - Event-driven processing
 - Database partitioning (by document ID)
-- Caching strategy (1-year cache for images)
+- Caching strategy (1-year cache for images/videos)
+- Data flow: Client → API → DB/Blob → AI → Client
 
 ---
 
-## Slide 10: Limitations & Future Improvements (20% marks)
-**Current Limitations:**
 
-| Limitation | Impact | Remediation |
-|------------|--------|-------------|
-| Cold starts | 1-2s latency on first request | Premium plan or warm-up pings |
-| Single region | Higher latency for distant users | Multi-region deployment |
-| Free tier limits | 5000 AI calls/month | Pay-as-you-go for production |
-| No real-time updates | Users must refresh | Add SignalR for WebSockets |
+## Slide 11: Limitations & Future Improvements
+| Limitation         | Impact                | Remediation                |
+|--------------------|----------------------|----------------------------|
+| Cold starts        | 1-2s latency         | Premium plan, warm-up      |
+| Single region      | Latency for some     | Multi-region, geo-replica  |
+| Free tier limits   | API/AI quotas        | Upgrade for prod           |
+| No real-time       | Manual refresh       | Add SignalR/Event Grid     |
 
-**Improvement Roadmap:**
-1. Add Azure Front Door for global load balancing
-2. Implement Redis Cache for session management
-3. Add Azure Search for advanced queries
-4. Event Grid for real-time notifications
+**Roadmap:** Azure Front Door, Redis Cache, Azure Search, Event Grid, more monitoring
 
 ---
 
@@ -222,14 +238,16 @@ Code Push → Build → Test → Deploy Backend → Deploy Frontend → Verify
 
 ---
 
-## Slide 12: Conclusion & Demo (5% marks)
+
+## Slide 12: Conclusion & Demo
 **Summary**
 
-✅ Built a scalable, cloud-native photo sharing platform
-✅ Implemented 3 advanced features:
-   - Cognitive Services (AI)
-   - Identity Framework (JWT)
-   - CI/CD Pipeline
+✅ Built a scalable, cloud-native Python media platform
+✅ Implemented advanced features:
+  - Cognitive Services (AI)
+  - Identity Framework (JWT)
+  - CI/CD Pipeline
+  - Azure Monitoring (health, network, CPU)
 
 ✅ Leveraged Azure's serverless architecture
 ✅ Demonstrated modern DevOps practices
@@ -237,10 +255,9 @@ Code Push → Build → Test → Deploy Backend → Deploy Frontend → Verify
 
 **Live Demo:**
 1. Browse the application
-2. Register as Creator → Upload photo → Show AI tags
-3. Register as Consumer → Comment, rate, like
-4. Show GitHub Actions deployment
-5. Show Azure Portal with running services
+2. Register as Creator → Upload media → Show AI/monitoring
+3. Register as Consumer → Interact
+4. Show CI/CD & Azure Portal (monitoring, health, CPU, network)
 
 ---
 
@@ -255,15 +272,15 @@ Code Push → Build → Test → Deploy Backend → Deploy Frontend → Verify
 
 ---
 
-## Video Script Timing (5 minutes)
 
-| Time | Content |
-|------|---------|
-| 0:00 - 0:30 | Introduction & Problem Statement |
-| 0:30 - 1:00 | Architecture Overview |
-| 1:00 - 2:00 | Demo: Register & Login (show JWT, roles) |
-| 2:00 - 3:00 | Demo: Upload photo (show AI tags, moderation) |
-| 3:00 - 3:30 | Demo: Consumer view (browse, comment, rate) |
-| 3:30 - 4:15 | Demo: CI/CD (show GitHub Actions) |
-| 4:15 - 4:45 | Scalability & Limitations |
-| 4:45 - 5:00 | Conclusion |
+## Video Script Timing (5 minutes)
+| Time         | Content                                 |
+|--------------|-----------------------------------------|
+| 0:00 - 0:30  | Intro & Problem                         |
+| 0:30 - 1:00  | Architecture Overview                   |
+| 1:00 - 2:00  | Demo: Register/Login (JWT, roles)       |
+| 2:00 - 3:00  | Demo: Upload media (AI, moderation)     |
+| 3:00 - 3:30  | Demo: Consumer view (browse, comment)   |
+| 3:30 - 4:00  | Demo: CI/CD, Monitoring (health, CPU)   |
+| 4:00 - 4:45  | Scalability, Data, Limitations          |
+| 4:45 - 5:00  | Conclusion                              |
