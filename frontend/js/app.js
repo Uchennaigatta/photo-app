@@ -695,19 +695,31 @@ const App = {
         const modalImage = document.getElementById('modalImage');
         const modalVideo = document.getElementById('modalVideo');
         
-        console.log('Modal elements:', { modalImage, modalVideo, isVideo });
+        console.log('Modal elements found:', { modalImage: !!modalImage, modalVideo: !!modalVideo, isVideo });
         
-        // Check if elements exist before accessing style
-        if (modalImage && modalVideo) {
-            if (isVideo) {
-                modalImage.style.display = 'none';
+        // Reset both elements first
+        if (modalImage) {
+            modalImage.style.display = 'none';
+            modalImage.src = '';
+        }
+        if (modalVideo) {
+            modalVideo.style.display = 'none';
+            modalVideo.src = '';
+            modalVideo.pause();
+        }
+        
+        // Now show the appropriate element
+        if (isVideo) {
+            if (modalVideo) {
+                modalVideo.src = photo.imageUrl || '';
                 modalVideo.style.display = 'block';
-                modalVideo.src = photo.imageUrl;
-            } else {
-                modalVideo.style.display = 'none';
+                console.log('Set video src to:', photo.imageUrl);
+            }
+        } else {
+            if (modalImage) {
+                modalImage.src = photo.imageUrl || '';
                 modalImage.style.display = 'block';
-                modalImage.src = photo.imageUrl;
-                console.log('Set modalImage.src to:', modalImage.src);
+                console.log('Set image src to:', photo.imageUrl);
                 
                 // Add error handler to detect image load failures
                 modalImage.onerror = () => {
