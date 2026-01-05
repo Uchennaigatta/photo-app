@@ -123,36 +123,6 @@ app.http('getPhotoById', {
             photo.views = (photo.views || 0) + 1;
             await container.item(photoId, photoId).replace(photo);
 
-            // Check if user has liked/rated this photo
-            const user = await verifyToken(request);
-            if (user) {
-                // Check if user liked this photo
-                const likesContainer = await getContainer('likes');
-                const { resources: likes } = await likesContainer.items
-                    .query({
-                        query: 'SELECT * FROM c WHERE c.photoId = @photoId AND c.userId = @userId',
-                        parameters: [
-                            { name: '@photoId', value: photoId },
-                            { name: '@userId', value: user.id }
-                        ]
-                    })
-                    .fetchAll();
-                photo.userLiked = likes.length > 0;
-
-                // Check if user rated this photo
-                const ratingsContainer = await getContainer('ratings');
-                const { resources: ratings } = await ratingsContainer.items
-                    .query({
-                        query: 'SELECT * FROM c WHERE c.photoId = @photoId AND c.userId = @userId',
-                        parameters: [
-                            { name: '@photoId', value: photoId },
-                            { name: '@userId', value: user.id }
-                        ]
-                    })
-                    .fetchAll();
-                photo.userRating = ratings.length > 0 ? ratings[0].rating : 0;
-            }
-
             return {
                 jsonBody: { success: true, data: photo }
             };
