@@ -684,12 +684,18 @@ const App = {
     // Photo Modal
     async openPhotoModal(photo) {
         this.currentPhoto = photo;
+        
+        // Debug: Log the photo data
+        console.log('Opening photo modal:', photo);
+        console.log('Photo imageUrl:', photo.imageUrl);
 
         // Determine if media is video or image
         const isVideo = photo.mediaType === 'video';
         
         const modalImage = document.getElementById('modalImage');
         const modalVideo = document.getElementById('modalVideo');
+        
+        console.log('Modal elements:', { modalImage, modalVideo, isVideo });
         
         // Check if elements exist before accessing style
         if (modalImage && modalVideo) {
@@ -701,6 +707,15 @@ const App = {
                 modalVideo.style.display = 'none';
                 modalImage.style.display = 'block';
                 modalImage.src = photo.imageUrl;
+                console.log('Set modalImage.src to:', modalImage.src);
+                
+                // Add error handler to detect image load failures
+                modalImage.onerror = () => {
+                    console.error('Failed to load image:', photo.imageUrl);
+                };
+                modalImage.onload = () => {
+                    console.log('Image loaded successfully');
+                };
             }
         }
         
