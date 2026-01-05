@@ -1,7 +1,8 @@
-const { BlobServiceClient } = require('@azure/storage-blob');
+const { BlobServiceClient, generateBlobSASQueryParameters, BlobSASPermissions, StorageSharedKeyCredential } = require('@azure/storage-blob');
 
 let blobServiceClient = null;
 let containerClient = null;
+let sharedKeyCredential = null;
 
 // Initialize Blob Storage client
 function getBlobServiceClient() {
@@ -11,6 +12,13 @@ function getBlobServiceClient() {
             throw new Error('BLOB_CONNECTION_STRING is not configured');
         }
         blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+        
+        // Parse connection string to get account name and key for SAS generation
+        const accountName = connectionString.match(/AccountName=([^;]+)/)?.[1];
+        const accountKey = connectionString.match(/AccountKey=([^;]+)/)?.[1];
+        if (accountName && accountKey) {
+            sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+        }
     }
     return blobServiceClient;
 }
@@ -42,7 +50,8 @@ async function uploadToBlob(blobName, buffer, contentType) {
         }
     });
     
-    return blockBlobClient.url;
+    // Generate SAS URL for public access
+    return generateSasUrl(blobName, 525600); // 1 year expiry
 }
 
 // Upload stream to blob storage (for larger files)
@@ -83,22 +92,26 @@ async function getBlobUrl(blobName) {
 
 // Generate SAS URL for temporary access
 async function generateSasUrl(blobName, expiresInMinutes = 60) {
-    const { BlobSASPermissions, generateBlobSASQueryParameters, StorageSharedKeyCredential } = require('@azure/storage-blob');
-    
+    getBlobServiceClient(); // Ensure sharedKeyCredential is initialized
     const container = await getContainerClient();
     const blockBlobClient = container.getBlockBlobClient(blobName);
     
-    // For SAS token generation, you need account name and key
-    // This is a simplified version - in production, use managed identity
+    if (!sharedKeyCredential) {
+        // Fallback to direct URL if can't generate SAS
+        console.warn('Cannot generate SAS token - returning direct URL');
+        return blockBlobClient.url;
+    }
+    
     const sasOptions = {
         containerName: container.containerName,
         blobName: blobName,
         permissions: BlobSASPermissions.parse('r'), // Read only
+        startsOn: new Date(),
         expiresOn: new Date(Date.now() + expiresInMinutes * 60 * 1000)
     };
     
-    // Return direct URL if container has public access
-    return blockBlobClient.url;
+    const sasToken = generateBlobSASQueryParameters(sasOptions, sharedKeyCredential).toString();
+    return `${blockBlobClient.url}?${sasToken}`;
 }
 
 // List all blobs in container

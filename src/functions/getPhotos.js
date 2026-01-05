@@ -1,6 +1,22 @@
 const { app } = require('@azure/functions');
 const { getContainer } = require('../services/database');
 const { verifyToken } = require('../services/auth');
+const { generateSasUrl } = require('../services/storage');
+
+// Helper function to add SAS token to photo URLs
+async function addSasToPhotos(photos) {
+    return Promise.all(photos.map(async (photo) => {
+        if (photo.blobName && photo.imageUrl && !photo.imageUrl.includes('?')) {
+            // Generate SAS URL if not already present
+            try {
+                photo.imageUrl = await generateSasUrl(photo.blobName, 525600); // 1 year
+            } catch (e) {
+                console.error('Failed to generate SAS for', photo.blobName, e);
+            }
+        }
+        return photo;
+    }));
+}
 
 app.http('getPhotos', {
     methods: ['GET'],
@@ -65,6 +81,9 @@ app.http('getPhotos', {
 
             const { resources: photos } = await container.items.query(querySpec).fetchAll();
 
+            // Add SAS tokens to photo URLs
+            const photosWithSas = await addSasToPhotos(photos);
+
             // Get total count for pagination
             const countQuery = {
                 query: 'SELECT VALUE COUNT(1) FROM c WHERE c.status = @status',
@@ -75,7 +94,7 @@ app.http('getPhotos', {
             return {
                 jsonBody: {
                     success: true,
-                    data: photos,
+                    data: photosWithSas,
                     pagination: {
                         page,
                         limit,
@@ -122,6 +141,15 @@ app.http('getPhotoById', {
             // Increment view count
             photo.views = (photo.views || 0) + 1;
             await container.item(photoId, photoId).replace(photo);
+
+            // Add SAS token to imageUrl if needed
+            if (photo.blobName && photo.imageUrl && !photo.imageUrl.includes('?')) {
+                try {
+                    photo.imageUrl = await generateSasUrl(photo.blobName, 525600);
+                } catch (e) {
+                    context.log('Failed to generate SAS:', e);
+                }
+            }
 
             // Check if user is authenticated and get user-specific data
             let userLiked = false;
