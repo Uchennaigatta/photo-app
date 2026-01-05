@@ -90,7 +90,7 @@ class ApiService {
 
     async getPhoto(photoId) {
         return this.request(`/photos/${photoId}`, {
-            auth: false
+            auth: true  // Include auth to get user-specific data (userLiked, userRating)
         });
     }
 

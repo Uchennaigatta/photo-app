@@ -123,8 +123,66 @@ app.http('getPhotoById', {
             photo.views = (photo.views || 0) + 1;
             await container.item(photoId, photoId).replace(photo);
 
+            // Check if user is authenticated and get user-specific data
+            let userLiked = false;
+            let userRating = 0;
+            
+            const authHeader = request.headers.get('authorization');
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                const token = authHeader.split(' ')[1];
+                try {
+                    const decoded = verifyToken(token);
+                    if (decoded && decoded.userId) {
+                        const userId = decoded.userId;
+                        
+                        // Check if user liked this photo
+                        try {
+                            const likesContainer = await getContainer('likes');
+                            const likeQuery = {
+                                query: 'SELECT * FROM c WHERE c.photoId = @photoId AND c.userId = @userId',
+                                parameters: [
+                                    { name: '@photoId', value: photoId },
+                                    { name: '@userId', value: userId }
+                                ]
+                            };
+                            const { resources: likes } = await likesContainer.items.query(likeQuery).fetchAll();
+                            userLiked = likes.length > 0;
+                        } catch (e) {
+                            context.log('Error checking likes:', e);
+                        }
+                        
+                        // Check user's rating
+                        try {
+                            const ratingsContainer = await getContainer('ratings');
+                            const ratingQuery = {
+                                query: 'SELECT * FROM c WHERE c.photoId = @photoId AND c.userId = @userId',
+                                parameters: [
+                                    { name: '@photoId', value: photoId },
+                                    { name: '@userId', value: userId }
+                                ]
+                            };
+                            const { resources: ratings } = await ratingsContainer.items.query(ratingQuery).fetchAll();
+                            if (ratings.length > 0) {
+                                userRating = ratings[0].rating;
+                            }
+                        } catch (e) {
+                            context.log('Error checking ratings:', e);
+                        }
+                    }
+                } catch (e) {
+                    context.log('Token verification failed:', e);
+                }
+            }
+
             return {
-                jsonBody: { success: true, data: photo }
+                jsonBody: { 
+                    success: true, 
+                    data: {
+                        ...photo,
+                        userLiked,
+                        userRating
+                    }
+                }
             };
         } catch (error) {
             context.log('Error fetching photo:', error);
