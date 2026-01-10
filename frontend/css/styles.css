@@ -704,6 +704,22 @@ input, textarea, select {
     max-width: 100%;
     max-height: 80vh;
     object-fit: contain;
+    display: block;
+}
+
+.photo-image img[style*="display: none"] {
+    display: none !important;
+}
+
+.photo-image video {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+    display: none;
+}
+
+.photo-image video[style*="display: block"] {
+    display: block !important;
 }
 
 .photo-info {

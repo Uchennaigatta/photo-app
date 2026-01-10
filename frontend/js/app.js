@@ -682,8 +682,12 @@ const App = {
     },
 
     // Photo Modal
-    openPhotoModal(photo) {
+    async openPhotoModal(photo) {
         this.currentPhoto = photo;
+        
+        // Debug: Log the photo data
+        console.log('Opening photo modal:', photo);
+        console.log('Photo imageUrl:', photo.imageUrl);
 
         // Determine if media is video or image
         const isVideo = photo.mediaType === 'video';
@@ -691,14 +695,40 @@ const App = {
         const modalImage = document.getElementById('modalImage');
         const modalVideo = document.getElementById('modalVideo');
         
-        if (isVideo) {
+        console.log('Modal elements found:', { modalImage: !!modalImage, modalVideo: !!modalVideo, isVideo });
+        
+        // Reset both elements first
+        if (modalImage) {
             modalImage.style.display = 'none';
-            modalVideo.style.display = 'block';
-            modalVideo.src = photo.imageUrl;
-        } else {
+            modalImage.src = '';
+        }
+        if (modalVideo) {
             modalVideo.style.display = 'none';
-            modalImage.style.display = 'block';
-            modalImage.src = photo.imageUrl;
+            modalVideo.src = '';
+            modalVideo.pause();
+        }
+        
+        // Now show the appropriate element
+        if (isVideo) {
+            if (modalVideo) {
+                modalVideo.src = photo.imageUrl || '';
+                modalVideo.style.display = 'block';
+                console.log('Set video src to:', photo.imageUrl);
+            }
+        } else {
+            if (modalImage) {
+                modalImage.src = photo.imageUrl || '';
+                modalImage.style.display = 'block';
+                console.log('Set image src to:', photo.imageUrl);
+                
+                // Add error handler to detect image load failures
+                modalImage.onerror = () => {
+                    console.error('Failed to load image:', photo.imageUrl);
+                };
+                modalImage.onload = () => {
+                    console.log('Image loaded successfully');
+                };
+            }
         }
         
         document.getElementById('modalTitle').textContent = photo.title;
@@ -762,7 +792,7 @@ const App = {
         this.resetStars();
 
         // Likes
-        document.getElementById('likeCount').textContent = photo.likes;
+        document.getElementById('likeCount').textContent = photo.likes || 0;
         const likeBtn = document.getElementById('likeBtn');
         likeBtn.classList.toggle('liked', photo.userLiked);
         likeBtn.querySelector('i').className = photo.userLiked ? 'fas fa-heart' : 'far fa-heart';
@@ -778,8 +808,8 @@ const App = {
             }
         }
 
-        // Comments
-        this.loadComments(photo);
+        // Comments - fetch from API
+        await this.loadComments(photo);
 
         // Ensure we're in view mode
         document.querySelector('.photo-detail').classList.remove('hidden');
@@ -788,29 +818,46 @@ const App = {
         this.openModal('photoModal');
     },
 
-    loadComments(photo) {
+    async loadComments(photo) {
         const commentsList = document.getElementById('commentsList');
         const commentCount = document.getElementById('commentCount');
 
-        commentsList.innerHTML = '';
-        commentCount.textContent = `(${photo.commentsData?.length || 0})`;
+        commentsList.innerHTML = '<p style="text-align: center; color: #888;">Loading comments...</p>';
 
-        if (photo.commentsData && photo.commentsData.length) {
-            photo.commentsData.forEach(comment => {
-                const div = document.createElement('div');
-                div.className = 'comment';
-                div.innerHTML = `
-                    <img class="comment-avatar" src="${comment.user.avatar}" alt="${comment.user.name}">
-                    <div class="comment-content">
-                        <div class="comment-header">
-                            <span class="comment-author">${comment.user.name}</span>
-                            <span class="comment-date">${formatDate(comment.createdAt)}</span>
+        try {
+            // Fetch comments from API
+            const response = await api.getComments(photo.id);
+            const comments = response.data || [];
+            
+            // Store in photo object for local reference
+            photo.commentsData = comments;
+            
+            commentsList.innerHTML = '';
+            commentCount.textContent = `(${comments.length})`;
+
+            if (comments.length > 0) {
+                comments.forEach(comment => {
+                    const div = document.createElement('div');
+                    div.className = 'comment';
+                    div.innerHTML = `
+                        <img class="comment-avatar" src="${comment.user?.avatar || 'https://ui-avatars.com/api/?name=User&background=6366f1&color=fff'}" alt="${comment.user?.name || 'User'}">
+                        <div class="comment-content">
+                            <div class="comment-header">
+                                <span class="comment-author">${comment.user?.name || 'Anonymous'}</span>
+                                <span class="comment-date">${formatDate(comment.createdAt)}</span>
+                            </div>
+                            <p class="comment-text">${comment.text}</p>
                         </div>
-                        <p class="comment-text">${comment.text}</p>
-                    </div>
-                `;
-                commentsList.appendChild(div);
-            });
+                    `;
+                    commentsList.appendChild(div);
+                });
+            } else {
+                commentsList.innerHTML = '<p style="text-align: center; color: #888;">No comments yet. Be the first to comment!</p>';
+            }
+        } catch (error) {
+            console.error('Error loading comments:', error);
+            commentsList.innerHTML = '<p style="text-align: center; color: #888;">Failed to load comments</p>';
+            commentCount.textContent = '(0)';
         }
     },
 
@@ -830,27 +877,16 @@ const App = {
         if (!text) return;
 
         try {
-            // For demo, add mock comment
-            const newComment = {
-                id: Date.now(),
-                text,
-                user: auth.getUser(),
-                createdAt: new Date().toISOString()
-            };
-
-            if (!this.currentPhoto.commentsData) {
-                this.currentPhoto.commentsData = [];
-            }
-            this.currentPhoto.commentsData.unshift(newComment);
-            this.currentPhoto.comments++;
-
-            this.loadComments(this.currentPhoto);
+            // Call API to add comment
+            const response = await api.addComment(this.currentPhoto.id, text);
+            
+            // Reload comments from server
+            await this.loadComments(this.currentPhoto);
             input.value = '';
 
             showToast('Comment added!', 'success');
-
-            // await api.addComment(this.currentPhoto.id, text);
         } catch (error) {
+            console.error('Failed to add comment:', error);
             showToast('Failed to add comment', 'error');
         }
     },
@@ -875,13 +911,23 @@ const App = {
         const rating = parseInt(e.target.dataset.rating);
 
         try {
+            // Call API to submit rating
+            const response = await api.ratePhoto(this.currentPhoto.id, rating);
+            
             this.currentPhoto.userRating = rating;
             this.highlightStars(rating);
+            
+            // Update average rating display if returned from API
+            if (response.data) {
+                const avgRating = response.data.averageRating || rating;
+                const ratingCount = response.data.ratingCount || 1;
+                document.getElementById('avgRating').textContent = avgRating.toFixed(1);
+                document.getElementById('ratingCount').textContent = `(${ratingCount} ratings)`;
+            }
 
             showToast('Rating submitted!', 'success');
-
-            // await api.ratePhoto(this.currentPhoto.id, rating);
         } catch (error) {
+            console.error('Failed to submit rating:', error);
             showToast('Failed to submit rating', 'error');
         }
     },
@@ -896,19 +942,24 @@ const App = {
         const likeCount = document.getElementById('likeCount');
 
         try {
-            this.currentPhoto.userLiked = !this.currentPhoto.userLiked;
-            this.currentPhoto.likes += this.currentPhoto.userLiked ? 1 : -1;
+            const wasLiked = this.currentPhoto.userLiked;
+            
+            // Call API first
+            if (wasLiked) {
+                await api.unlikePhoto(this.currentPhoto.id);
+            } else {
+                await api.likePhoto(this.currentPhoto.id);
+            }
+            
+            // Update UI after successful API call
+            this.currentPhoto.userLiked = !wasLiked;
+            this.currentPhoto.likes = (this.currentPhoto.likes || 0) + (this.currentPhoto.userLiked ? 1 : -1);
 
             likeBtn.classList.toggle('liked', this.currentPhoto.userLiked);
             likeBtn.querySelector('i').className = this.currentPhoto.userLiked ? 'fas fa-heart' : 'far fa-heart';
             likeCount.textContent = this.currentPhoto.likes;
-
-            // if (this.currentPhoto.userLiked) {
-            //     await api.likePhoto(this.currentPhoto.id);
-            // } else {
-            //     await api.unlikePhoto(this.currentPhoto.id);
-            // }
         } catch (error) {
+            console.error('Failed to update like:', error);
             showToast('Failed to update like', 'error');
         }
     },

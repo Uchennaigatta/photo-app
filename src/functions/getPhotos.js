@@ -1,6 +1,22 @@
 const { app } = require('@azure/functions');
 const { getContainer } = require('../services/database');
 const { verifyToken } = require('../services/auth');
+const { generateSasUrl } = require('../services/storage');
+
+// Helper function to add SAS token to photo URLs
+async function addSasToPhotos(photos) {
+    return Promise.all(photos.map(async (photo) => {
+        if (photo.blobName && photo.imageUrl && !photo.imageUrl.includes('?')) {
+            // Generate SAS URL if not already present
+            try {
+                photo.imageUrl = await generateSasUrl(photo.blobName, 525600); // 1 year
+            } catch (e) {
+                console.error('Failed to generate SAS for', photo.blobName, e);
+            }
+        }
+        return photo;
+    }));
+}
 
 app.http('getPhotos', {
     methods: ['GET'],
@@ -65,6 +81,9 @@ app.http('getPhotos', {
 
             const { resources: photos } = await container.items.query(querySpec).fetchAll();
 
+            // Add SAS tokens to photo URLs
+            const photosWithSas = await addSasToPhotos(photos);
+
             // Get total count for pagination
             const countQuery = {
                 query: 'SELECT VALUE COUNT(1) FROM c WHERE c.status = @status',
@@ -75,7 +94,7 @@ app.http('getPhotos', {
             return {
                 jsonBody: {
                     success: true,
-                    data: photos,
+                    data: photosWithSas,
                     pagination: {
                         page,
                         limit,
@@ -123,8 +142,75 @@ app.http('getPhotoById', {
             photo.views = (photo.views || 0) + 1;
             await container.item(photoId, photoId).replace(photo);
 
+            // Add SAS token to imageUrl if needed
+            if (photo.blobName && photo.imageUrl && !photo.imageUrl.includes('?')) {
+                try {
+                    photo.imageUrl = await generateSasUrl(photo.blobName, 525600);
+                } catch (e) {
+                    context.log('Failed to generate SAS:', e);
+                }
+            }
+
+            // Check if user is authenticated and get user-specific data
+            let userLiked = false;
+            let userRating = 0;
+            
+            const authHeader = request.headers.get('authorization');
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                const token = authHeader.split(' ')[1];
+                try {
+                    const decoded = verifyToken(token);
+                    if (decoded && decoded.userId) {
+                        const userId = decoded.userId;
+                        
+                        // Check if user liked this photo
+                        try {
+                            const likesContainer = await getContainer('likes');
+                            const likeQuery = {
+                                query: 'SELECT * FROM c WHERE c.photoId = @photoId AND c.userId = @userId',
+                                parameters: [
+                                    { name: '@photoId', value: photoId },
+                                    { name: '@userId', value: userId }
+                                ]
+                            };
+                            const { resources: likes } = await likesContainer.items.query(likeQuery).fetchAll();
+                            userLiked = likes.length > 0;
+                        } catch (e) {
+                            context.log('Error checking likes:', e);
+                        }
+                        
+                        // Check user's rating
+                        try {
+                            const ratingsContainer = await getContainer('ratings');
+                            const ratingQuery = {
+                                query: 'SELECT * FROM c WHERE c.photoId = @photoId AND c.userId = @userId',
+                                parameters: [
+                                    { name: '@photoId', value: photoId },
+                                    { name: '@userId', value: userId }
+                                ]
+                            };
+                            const { resources: ratings } = await ratingsContainer.items.query(ratingQuery).fetchAll();
+                            if (ratings.length > 0) {
+                                userRating = ratings[0].rating;
+                            }
+                        } catch (e) {
+                            context.log('Error checking ratings:', e);
+                        }
+                    }
+                } catch (e) {
+                    context.log('Token verification failed:', e);
+                }
+            }
+
             return {
-                jsonBody: { success: true, data: photo }
+                jsonBody: { 
+                    success: true, 
+                    data: {
+                        ...photo,
+                        userLiked,
+                        userRating
+                    }
+                }
             };
         } catch (error) {
             context.log('Error fetching photo:', error);
