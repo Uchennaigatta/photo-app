@@ -23,7 +23,7 @@ on:
 
 env:
   AZURE_FUNCTIONAPP_NAME: 'photoshare-func-hscrezebbubqdhd7'
-  AZURE_STORAGE_ACCOUNT: 'photosharewebstore'
+  AZURE_STORAGE_ACCOUNT: 'photosharestore'
   NODE_VERSION: '20.x'
 
 jobs:
